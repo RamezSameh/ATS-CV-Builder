@@ -139,7 +139,7 @@ const i18n = {
         {
           name: "ATS CV Builder",
           description: "تطبيق ويب لإنشاء CV احترافي مع دعم عربي/إنجليزي ومعاينة مباشرة.",
-          github: "https://github.com/your-username/ats-cv-builder"
+          github: "https://github.com/RamezSameh/ATS-CV-Builder"
         }
       ]
     }
