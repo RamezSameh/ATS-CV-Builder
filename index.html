@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATS CV Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="form-panel">
+      <div class="panel-head">
+        <div class="top-row">
+          <p class="eyebrow" data-i18n="builderTag">ATS CV Builder</p>
+          <div class="lang-switch">
+            <label for="languageSelect" data-i18n="languageLabel">Language</label>
+            <select id="languageSelect" aria-label="Language">
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+
+        <h1 data-i18n="panelTitle">أنشئ سيرة ذاتية متوافقة مع ATS</h1>
+        <p class="panel-copy" data-i18n="panelCopy">اكتب بياناتك وشاهد النتيجة مباشرة بصيغة منظمة وسهلة الفحص للأنظمة الآلية.</p>
+      </div>
+
+      <form id="cvForm" class="cv-form" autocomplete="on">
+        <section>
+          <h2 data-i18n="basicInfoSection">البيانات الأساسية</h2>
+
+          <label>
+            <span data-i18n="fullNameLabel">الاسم الكامل</span>
+            <input type="text" name="fullName" value="محمد أحمد" data-i18n-placeholder="fullNamePlaceholder">
+          </label>
+
+          <label>
+            <span data-i18n="jobTitleLabel">المسمى الوظيفي</span>
+            <input type="text" name="jobTitle" value="Frontend Developer" data-i18n-placeholder="jobTitlePlaceholder">
+          </label>
+
+          <label>
+            <span data-i18n="summaryLabel">النبذة المختصرة</span>
+            <textarea name="summary" rows="4" data-i18n-placeholder="summaryPlaceholder">مطور واجهات أمامية مهتم ببناء صفحات سريعة وواضحة وسهلة الاستخدام مع تركيز على تجربة المستخدم.</textarea>
+          </label>
+        </section>
+
+        <section>
+          <h2 data-i18n="contactSection">بيانات التواصل</h2>
+
+          <label>
+            <span data-i18n="emailLabel">البريد الإلكتروني</span>
+            <input type="email" name="email" value="mohamed@example.com" data-i18n-placeholder="emailPlaceholder">
+          </label>
+
+          <label>
+            <span data-i18n="phoneLabel">رقم الهاتف</span>
+            <input type="text" name="phone" value="+20 100 000 0000" data-i18n-placeholder="phonePlaceholder">
+          </label>
+
+          <label>
+            <span data-i18n="addressLabel">العنوان</span>
+            <input type="text" name="address" value="القاهرة، مصر" data-i18n-placeholder="addressPlaceholder">
+          </label>
+
+          <label>
+            <span data-i18n="websiteLabel">لينكدإن أو موقع شخصي</span>
+            <input type="text" name="website" value="linkedin.com/in/mohamed" data-i18n-placeholder="websitePlaceholder">
+          </label>
+        </section>
+
+        <section>
+          <h2 data-i18n="experienceSection">الخبرات</h2>
+          <p class="section-hint" data-i18n="experienceHint">أضف كل خبرة بشكل منفصل مع إنجازات قابلة للقياس.</p>
+          <div id="experienceItems" class="entry-list"></div>
+          <button type="button" id="addExperienceBtn" class="ghost-btn" data-i18n="addExperienceBtn">+ إضافة خبرة</button>
+        </section>
+
+        <section>
+          <h2 data-i18n="educationSection">التعليم</h2>
+          <p class="section-hint" data-i18n="educationHint">أضف الدرجة العلمية والجامعة وتفاصيل إضافية مثل المعدل أو مشروع التخرج.</p>
+          <div id="educationItems" class="entry-list"></div>
+          <button type="button" id="addEducationBtn" class="ghost-btn" data-i18n="addEducationBtn">+ إضافة مؤهل</button>
+        </section>
+
+        <section>
+          <h2 data-i18n="projectsSection">المشروعات</h2>
+          <p class="section-hint" data-i18n="projectsHint">أضف مشاريعك المهمة مع رابط GitHub لكل مشروع.</p>
+          <div id="projectItems" class="entry-list"></div>
+          <button type="button" id="addProjectBtn" class="ghost-btn" data-i18n="addProjectBtn">+ إضافة مشروع</button>
+        </section>
+
+        <section>
+          <h2 data-i18n="skillsSection">المهارات</h2>
+
+          <label>
+            <span data-i18n="skillsLabel">المهارات (كل سطر مهارة)</span>
+            <textarea name="skills" rows="4" data-i18n-placeholder="skillsPlaceholder">HTML
+CSS
+JavaScript
+React</textarea>
+          </label>
+        </section>
+
+        <div class="actions">
+          <button type="button" id="printBtn" class="primary-btn" data-i18n="printBtn">طباعة / حفظ PDF</button>
+          <button type="reset" class="secondary-btn" data-i18n="resetBtn">إعادة ضبط</button>
+        </div>
+      </form>
+    </aside>
+
+    <main class="preview-panel">
+      <div class="preview-toolbar">
+        <span data-i18n="previewLabel">معاينة ATS</span>
+        <span class="ats-badge" data-i18n="atsBadge">ATS Friendly</span>
+      </div>
+
+      <article class="cv-preview" id="cvPreview">
+        <header class="cv-header">
+          <h1 id="previewName">Ramez Sameh</h1>
+          <p id="previewJobTitle">Frontend Developer</p>
+          <div class="contact-row">
+            <span id="previewEmail">Ramez@example.com</span>
+            <span id="previewPhone">+20 100 000 0000</span>
+            <span id="previewAddress">القاهرة، مصر</span>
+            <span id="previewWebsite">linkedin.com/in/ramez-sameh</span>
+          </div>
+        </header>
+
+        <section class="cv-section">
+          <h2 data-i18n="summarySection">الملف الشخصي</h2>
+          <p id="previewSummary">مطور واجهات أمامية مهتم ببناء صفحات سريعة وواضحة وسهلة الاستخدام مع تركيز على تجربة المستخدم.</p>
+        </section>
+
+        <section class="cv-section">
+          <h2 data-i18n="experienceSection">الخبرات</h2>
+          <div id="previewExperience"></div>
+        </section>
+
+        <section class="cv-section">
+          <h2 data-i18n="educationSection">التعليم</h2>
+          <div id="previewEducation"></div>
+        </section>
+
+        <section class="cv-section">
+          <h2 data-i18n="projectsSection">المشروعات</h2>
+          <div id="previewProjects"></div>
+        </section>
+
+        <section class="cv-section">
+          <h2 data-i18n="skillsSection">المهارات</h2>
+          <ul id="previewSkills"></ul>
+        </section>
+      </article>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
