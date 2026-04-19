@@ -104,6 +104,13 @@ JavaScript
 React</textarea>
           </label>
         </section>
+        <section>
+          <h2 data-i18n="importPdfSection">استيراد CV من PDF</h2>
+          <p class="section-hint" data-i18n="importPdfHint">ارفع ملف PDF وسيتم محاولة استخراج البيانات وملء الحقول تلقائيًا.</p>
+          <input id="pdfUploadInput" type="file" accept=".pdf,application/pdf">
+          <button type="button" id="importPdfBtn" class="ghost-btn" data-i18n="importPdfBtn">استيراد من PDF</button>
+          <p id="pdfImportStatus" class="import-status" aria-live="polite" data-i18n="importPdfStatusReady">جاهز لاستيراد ملف PDF.</p>
+        </section>
 
         <div class="actions">
           <button type="button" id="printBtn" class="primary-btn" data-i18n="printBtn">طباعة / حفظ PDF</button>

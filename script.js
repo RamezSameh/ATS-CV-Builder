@@ -4,9 +4,24 @@ const languageSelect = document.getElementById("languageSelect");
 const addExperienceBtn = document.getElementById("addExperienceBtn");
 const addEducationBtn = document.getElementById("addEducationBtn");
 const addProjectBtn = document.getElementById("addProjectBtn");
+const importPdfBtn = document.getElementById("importPdfBtn");
+const pdfUploadInput = document.getElementById("pdfUploadInput");
+const pdfImportStatus = document.getElementById("pdfImportStatus");
 const experienceItems = document.getElementById("experienceItems");
 const educationItems = document.getElementById("educationItems");
 const projectItems = document.getElementById("projectItems");
+let importStatusKey = "importPdfStatusReady";
+const pdfJsCandidates = [
+  {
+    lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+    worker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
+  },
+  {
+    lib: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js",
+    worker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"
+  }
+];
+let activePdfWorkerSrc = "";
 
 const fields = {
   fullName: document.getElementById("previewName"),
@@ -51,6 +66,17 @@ const i18n = {
       addProjectBtn: "+ إضافة مشروع",
       skillsSection: "المهارات",
       skillsLabel: "المهارات (كل سطر مهارة)",
+      importPdfSection: "استيراد CV من PDF",
+      importPdfHint: "ارفع ملف PDF وسيتم محاولة استخراج البيانات وملء الحقول تلقائيًا.",
+      importPdfBtn: "استيراد من PDF",
+      importPdfStatusReady: "جاهز لاستيراد ملف PDF.",
+      importPdfStatusReading: "جاري تحليل ملف PDF واستخراج البيانات...",
+      importPdfStatusDone: "تم استيراد البيانات بنجاح. يمكنك الآن التعديل والطباعة.",
+      importPdfStatusError: "حدث خطأ أثناء قراءة ملف PDF.",
+      importPdfStatusNoFile: "اختر ملف PDF أولًا.",
+      importPdfStatusInvalidType: "الملف المختار ليس PDF صالحًا.",
+      importPdfStatusNoText: "لم يتم العثور على نص قابل للاستخراج داخل هذا الملف.",
+      importPdfStatusUnsupported: "مكتبة PDF غير متاحة. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.",
       printBtn: "طباعة / حفظ PDF",
       resetBtn: "إعادة ضبط",
       previewLabel: "معاينة ATS",
@@ -172,6 +198,17 @@ const i18n = {
       addProjectBtn: "+ Add Project",
       skillsSection: "Skills",
       skillsLabel: "Skills (one skill per line)",
+      importPdfSection: "Import CV from PDF",
+      importPdfHint: "Upload a PDF file and the app will try to extract and map your data automatically.",
+      importPdfBtn: "Import from PDF",
+      importPdfStatusReady: "Ready to import a PDF file.",
+      importPdfStatusReading: "Analyzing PDF and extracting data...",
+      importPdfStatusDone: "Data imported successfully. You can edit and print now.",
+      importPdfStatusError: "An error occurred while reading the PDF file.",
+      importPdfStatusNoFile: "Please choose a PDF file first.",
+      importPdfStatusInvalidType: "The selected file is not a valid PDF.",
+      importPdfStatusNoText: "No extractable text was found in this file.",
+      importPdfStatusUnsupported: "PDF library is unavailable. Check your internet connection and try again.",
       printBtn: "Print / Save PDF",
       resetBtn: "Reset",
       previewLabel: "ATS Preview",
@@ -464,6 +501,10 @@ function localizeStaticText(locale) {
   });
 
   setEntryTitles(locale);
+
+  if (pdfImportStatus && locale.strings[importStatusKey]) {
+    pdfImportStatus.textContent = locale.strings[importStatusKey];
+  }
 }
 
 function collectExperienceEntries() {
@@ -750,6 +791,446 @@ function applyLanguage(language) {
   updatePreview();
 }
 
+function setImportStatus(key) {
+  importStatusKey = key;
+  const locale = currentLocale();
+  const message = locale.strings[key] || "";
+
+  if (pdfImportStatus) {
+    pdfImportStatus.textContent = message;
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`failed:${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensurePdfJsLoaded() {
+  if (window.pdfjsLib && activePdfWorkerSrc) {
+    return;
+  }
+
+  if (window.pdfjsLib && !activePdfWorkerSrc) {
+    activePdfWorkerSrc = pdfJsCandidates[0].worker;
+    return;
+  }
+
+  let lastError = null;
+
+  for (const candidate of pdfJsCandidates) {
+    try {
+      await loadScript(candidate.lib);
+
+      if (window.pdfjsLib) {
+        activePdfWorkerSrc = candidate.worker;
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("pdf-library-missing");
+}
+
+async function extractTextFromPdfFile(file) {
+  await ensurePdfJsLoaded();
+
+  if (!window.pdfjsLib) {
+    throw new Error("pdf-library-missing");
+  }
+
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = activePdfWorkerSrc;
+
+  const data = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+  const pages = [];
+
+  for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
+    const page = await pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    const lines = [];
+    let currentLine = "";
+    let currentY = null;
+
+    content.items.forEach((item) => {
+      const text = (item.str || "").trim();
+
+      if (!text) {
+        return;
+      }
+
+      const y = Math.round(item.transform[5]);
+
+      if (currentY !== null && Math.abs(y - currentY) > 2) {
+        if (currentLine) {
+          lines.push(currentLine.trim());
+        }
+
+        currentLine = text;
+      } else {
+        currentLine = currentLine ? `${currentLine} ${text}` : text;
+      }
+
+      currentY = y;
+    });
+
+    if (currentLine) {
+      lines.push(currentLine.trim());
+    }
+
+    pages.push(lines.join("\n"));
+  }
+
+  return pages.join("\n");
+}
+
+function splitCleanLines(text) {
+  return text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+function stripListPrefix(line) {
+  return line.replace(/^[-*•●▪◦]+\s*/, "").trim();
+}
+
+function isLikelyContactLine(line) {
+  return /@|linkedin|github|https?:\/\/|www\.|(\+?\d[\d\s().-]{7,}\d)/i.test(line);
+}
+
+function getSectionKey(line) {
+  const clean = line.replace(/[:|•\-]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const isShortHeading = clean.split(" ").length <= 5;
+
+  if (
+    /^(summary|profile|about|objective|professional summary|ملخص|نبذة|نبذة مختصرة)$/.test(clean) ||
+    (isShortHeading && /(summary|profile|objective|ملخص|نبذة)/.test(clean))
+  ) {
+    return "summary";
+  }
+
+  if (
+    /^(experience|work experience|professional experience|employment history|الخبرات|الخبرة)$/.test(clean) ||
+    (isShortHeading && /(experience|employment|الخبرات|الخبرة)/.test(clean))
+  ) {
+    return "experience";
+  }
+
+  if (
+    /^(education|academic background|التعليم|المؤهلات)$/.test(clean) ||
+    (isShortHeading && /(education|academic|التعليم|المؤهلات)/.test(clean))
+  ) {
+    return "education";
+  }
+
+  if (
+    /^(skills|technical skills|core skills|المهارات)$/.test(clean) ||
+    (isShortHeading && /(skills|technical skills|المهارات)/.test(clean))
+  ) {
+    return "skills";
+  }
+
+  if (
+    /^(projects|project|selected projects|المشروعات|المشاريع)$/.test(clean) ||
+    (isShortHeading && /(projects|project|المشروعات|المشاريع)/.test(clean))
+  ) {
+    return "projects";
+  }
+
+  return "";
+}
+
+function extractSections(lines) {
+  const markers = [];
+
+  lines.forEach((line, index) => {
+    const key = getSectionKey(line);
+
+    if (key) {
+      markers.push({ key, index });
+    }
+  });
+
+  const sections = {
+    summary: [],
+    experience: [],
+    education: [],
+    skills: [],
+    projects: []
+  };
+
+  if (!markers.length) {
+    return {
+      sections,
+      firstHeadingIndex: lines.length
+    };
+  }
+
+  markers.forEach((marker, idx) => {
+    const start = marker.index + 1;
+    const end = idx + 1 < markers.length ? markers[idx + 1].index : lines.length;
+    sections[marker.key] = lines.slice(start, end).filter(Boolean);
+  });
+
+  return {
+    sections,
+    firstHeadingIndex: markers[0].index
+  };
+}
+
+function parseSkills(sectionLines) {
+  const tokens = [];
+
+  sectionLines.forEach((line) => {
+    stripListPrefix(line)
+      .split(/[,|/]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((token) => tokens.push(token));
+  });
+
+  return Array.from(new Set(tokens)).slice(0, 20);
+}
+
+function extractDateRange(line) {
+  const dateRangePattern =
+    /((?:\d{4}|[A-Za-z]{3,9}\s+\d{4}|(?:يناير|فبراير|مارس|إبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s+\d{4})\s*(?:-|–|—|to|الى|إلى)\s*(?:\d{4}|present|current|now|الآن|حتى الآن|[A-Za-z]{3,9}\s+\d{4}|(?:يناير|فبراير|مارس|إبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s+\d{4}))/i;
+  const match = line.match(dateRangePattern);
+
+  if (!match) {
+    return {
+      start: "",
+      end: "",
+      cleanLine: line
+    };
+  }
+
+  const range = match[0];
+  const [start = "", end = ""] = range.split(/\s*(?:-|–|—|to|الى|إلى)\s*/i);
+
+  return {
+    start: start.trim(),
+    end: end.trim(),
+    cleanLine: line.replace(range, "").replace(/\(\s*\)/g, "").replace(/\s{2,}/g, " ").trim()
+  };
+}
+
+function looksLikeTitle(line) {
+  return !isLikelyContactLine(line) && stripListPrefix(line).split(" ").length <= 10;
+}
+
+function splitIntoBlocks(lines) {
+  const cleaned = lines.map((line) => stripListPrefix(line)).filter(Boolean);
+
+  if (!cleaned.length) {
+    return [];
+  }
+
+  const blocks = [];
+  let current = [];
+
+  cleaned.forEach((line) => {
+    const hasDate = Boolean(extractDateRange(line).start);
+    const currentHasDate = current.some((entry) => Boolean(extractDateRange(entry).start));
+    const startNewBlock =
+      current.length > 0 &&
+      (
+        (hasDate && currentHasDate) ||
+        (looksLikeTitle(line) && current.length >= 3 && !line.startsWith("http"))
+      );
+
+    if (startNewBlock) {
+      blocks.push(current);
+      current = [line];
+      return;
+    }
+
+    current.push(line);
+  });
+
+  if (current.length) {
+    blocks.push(current);
+  }
+
+  return blocks;
+}
+
+function splitRoleCompany(text) {
+  const patterns = [/\s+\|\s+/, /\s+-\s+/, /\s+@\s+/i, /\s+at\s+/i, /\s+في\s+/];
+
+  for (const pattern of patterns) {
+    if (pattern.test(text)) {
+      const parts = text.split(pattern).map((part) => part.trim()).filter(Boolean);
+
+      if (parts.length >= 2) {
+        return {
+          first: parts[0],
+          second: parts[1]
+        };
+      }
+    }
+  }
+
+  return {
+    first: text.trim(),
+    second: ""
+  };
+}
+
+function parseExperience(sectionLines) {
+  const blocks = splitIntoBlocks(sectionLines);
+
+  return blocks
+    .map((block) => {
+      const firstLine = block[0] || "";
+      const dateInfo = extractDateRange(firstLine);
+      const roleCompany = splitRoleCompany(dateInfo.cleanLine || firstLine);
+      const fallbackSecond = block[1] && !isLikelyContactLine(block[1]) ? block[1] : "";
+      const achievementsStart = fallbackSecond ? 2 : 1;
+
+      return {
+        role: roleCompany.first,
+        company: roleCompany.second || fallbackSecond,
+        location: "",
+        start: dateInfo.start,
+        end: dateInfo.end,
+        achievements: block.slice(achievementsStart).join("\n")
+      };
+    })
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function parseEducation(sectionLines) {
+  const blocks = splitIntoBlocks(sectionLines);
+
+  return blocks
+    .map((block) => {
+      const firstLine = block[0] || "";
+      const dateInfo = extractDateRange(firstLine);
+      const degreeInstitution = splitRoleCompany(dateInfo.cleanLine || firstLine);
+      const fallbackInstitution = block[1] && !isLikelyContactLine(block[1]) ? block[1] : "";
+      const detailsStart = fallbackInstitution ? 2 : 1;
+
+      return {
+        degree: degreeInstitution.first,
+        institution: degreeInstitution.second || fallbackInstitution,
+        location: "",
+        start: dateInfo.start,
+        end: dateInfo.end,
+        details: block.slice(detailsStart).join("\n")
+      };
+    })
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function extractUrl(line) {
+  const match = line.match(/(https?:\/\/[^\s]+|www\.[^\s]+|linkedin\.com\/[^\s]+|github\.com\/[^\s]+)/i);
+  return match ? match[0] : "";
+}
+
+function parseProjects(sectionLines) {
+  const blocks = splitIntoBlocks(sectionLines);
+
+  return blocks
+    .map((block) => {
+      const urlLine = block.find((line) => /github|https?:\/\/|www\./i.test(line)) || "";
+      const github = extractUrl(urlLine);
+      const nonUrlLines = block.filter((line) => line !== urlLine);
+      const name = nonUrlLines[0] || "";
+      const description = nonUrlLines.slice(1).join("\n");
+
+      return {
+        name,
+        description,
+        github
+      };
+    })
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function parseCvText(rawText) {
+  const lines = splitCleanLines(rawText);
+  const fullText = lines.join(" \n ");
+  const { sections, firstHeadingIndex } = extractSections(lines);
+  const topLines = lines.slice(0, Math.min(firstHeadingIndex, 10));
+
+  const emailMatch = fullText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  const phoneMatch = fullText.match(/(\+?\d[\d\s().-]{7,}\d)/);
+  const websiteMatch = fullText.match(/((https?:\/\/)?(www\.)?(linkedin\.com\/[^\s|,]+|github\.com\/[^\s|,]+|[a-z0-9-]+\.[a-z]{2,}(\/[^\s|,]*)?))/i);
+  const nameCandidates = topLines.filter((line) => {
+    const wordCount = line.split(" ").length;
+    return wordCount >= 2 && wordCount <= 5 && !isLikelyContactLine(line) && !getSectionKey(line);
+  });
+  const fullName = nameCandidates[0] || "";
+  const jobTitle = topLines.find((line) => line !== fullName && !isLikelyContactLine(line) && !getSectionKey(line)) || "";
+  const summary = (sections.summary.length ? sections.summary : lines.slice(2, 6)).slice(0, 5).join("\n");
+  const address =
+    topLines.find((line) => /,|،/.test(line) && !isLikelyContactLine(line) && line.split(" ").length <= 8) || "";
+  const skills = parseSkills(sections.skills);
+  const experience = parseExperience(sections.experience);
+  const education = parseEducation(sections.education);
+  const projects = parseProjects(sections.projects);
+
+  return {
+    fullName,
+    jobTitle,
+    summary,
+    email: emailMatch[0] || "",
+    phone: phoneMatch ? phoneMatch[0] : "",
+    website: websiteMatch ? websiteMatch[0] : "",
+    address,
+    skills,
+    experience,
+    education,
+    projects
+  };
+}
+
+function setFormValue(name, value) {
+  const input = form.elements.namedItem(name);
+
+  if (input) {
+    input.value = value || "";
+  }
+}
+
+function fillEntriesFromParsedData(container, entries, creator) {
+  container.innerHTML = "";
+
+  if (entries.length) {
+    entries.forEach((entry) => creator(entry));
+    return;
+  }
+
+  creator();
+}
+
+function fillFormFromParsedCv(parsed) {
+  setFormValue("fullName", parsed.fullName);
+  setFormValue("jobTitle", parsed.jobTitle);
+  setFormValue("summary", parsed.summary);
+  setFormValue("email", parsed.email);
+  setFormValue("phone", parsed.phone);
+  setFormValue("address", parsed.address);
+  setFormValue("website", parsed.website);
+  setFormValue("skills", (parsed.skills || []).join("\n"));
+
+  fillEntriesFromParsedData(experienceItems, parsed.experience || [], createExperienceItem);
+  fillEntriesFromParsedData(educationItems, parsed.education || [], createEducationItem);
+  fillEntriesFromParsedData(projectItems, parsed.projects || [], createProjectItem);
+
+  applyLanguage(languageSelect.value);
+}
+
 function addEmptyExperience() {
   createExperienceItem();
   applyLanguage(languageSelect.value);
@@ -809,6 +1290,42 @@ form.addEventListener("reset", () => {
 
 languageSelect.addEventListener("change", (event) => {
   applyLanguage(event.target.value);
+});
+
+importPdfBtn.addEventListener("click", async () => {
+  const file = pdfUploadInput.files && pdfUploadInput.files[0];
+
+  if (!file) {
+    setImportStatus("importPdfStatusNoFile");
+    return;
+  }
+
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+    setImportStatus("importPdfStatusInvalidType");
+    return;
+  }
+
+  setImportStatus("importPdfStatusReading");
+
+  try {
+    const text = await extractTextFromPdfFile(file);
+
+    if (!text.trim()) {
+      setImportStatus("importPdfStatusNoText");
+      return;
+    }
+
+    const parsed = parseCvText(text);
+    fillFormFromParsedCv(parsed);
+    setImportStatus("importPdfStatusDone");
+  } catch (error) {
+    if (error && error.message === "pdf-library-missing") {
+      setImportStatus("importPdfStatusUnsupported");
+      return;
+    }
+
+    setImportStatus("importPdfStatusError");
+  }
 });
 
 printBtn.addEventListener("click", () => {

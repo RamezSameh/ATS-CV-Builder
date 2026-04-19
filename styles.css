@@ -159,6 +159,22 @@ textarea {
   background: var(--surface);
 }
 
+#pdfUploadInput {
+  margin-bottom: 10px;
+}
+
+#pdfUploadInput::file-selector-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 textarea {
   resize: vertical;
   min-height: 88px;
@@ -230,6 +246,12 @@ textarea:focus,
 
 .ghost-btn {
   width: 100%;
+}
+
+.import-status {
+  margin: 10px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
 }
 
 .actions {
