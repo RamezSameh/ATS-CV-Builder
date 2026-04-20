@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #eef1f4;
   --panel: #f8f9fb;
   --surface: #ffffff;
@@ -445,6 +445,20 @@ html[dir="rtl"] .entry-detail-list {
 
 html[dir="ltr"] .entry-detail-list {
   padding: 0 0 0 18px;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.skills-sub-title {
+  font-size: 1rem;
+  margin: 0 0 8px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
 }
 
 @keyframes rise {

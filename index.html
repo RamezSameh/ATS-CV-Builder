@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -94,16 +94,27 @@
         </section>
 
         <section>
+          <h2 data-i18n="languagesSection">اللغات</h2>
+          <p class="section-hint" data-i18n="languagesHint">أضف اللغات التي تتقنها مع تحديد المستوى.</p>
+          <div id="languageItems" class="entry-list"></div>
+          <button type="button" id="addLanguageBtn" class="ghost-btn" data-i18n="addLanguageBtn">+ إضافة لغة</button>
+        </section>
+
+        <section>
           <h2 data-i18n="skillsSection">المهارات</h2>
+          <p class="section-hint" data-i18n="skillsHint">كل سطر مهارة مستقلة</p>
 
           <label>
-            <span data-i18n="skillsLabel">المهارات (كل سطر مهارة)</span>
-            <textarea name="skills" rows="4" data-i18n-placeholder="skillsPlaceholder">HTML
-CSS
-JavaScript
-React</textarea>
+            <span data-i18n="hardSkillsLabel">المهارات التقنية (Hard Skills)</span>
+            <textarea name="hardSkills" rows="4" data-i18n-placeholder="hardSkillsPlaceholder"></textarea>
+          </label>
+
+          <label>
+            <span data-i18n="softSkillsLabel">المهارات الشخصية (Soft Skills)</span>
+            <textarea name="softSkills" rows="3" data-i18n-placeholder="softSkillsPlaceholder"></textarea>
           </label>
         </section>
+
         <section>
           <h2 data-i18n="importPdfSection">استيراد CV من PDF</h2>
           <p class="section-hint" data-i18n="importPdfHint">ارفع ملف PDF وسيتم محاولة استخراج البيانات وملء الحقول تلقائيًا.</p>
@@ -114,6 +125,7 @@ React</textarea>
 
         <div class="actions">
           <button type="button" id="printBtn" class="primary-btn" data-i18n="printBtn">طباعة / حفظ PDF</button>
+          <button type="button" id="downloadWordBtn" class="secondary-btn" data-i18n="downloadWordBtn">تحميل Word</button>
           <button type="reset" class="secondary-btn" data-i18n="resetBtn">إعادة ضبط</button>
         </div>
       </form>
@@ -159,7 +171,21 @@ React</textarea>
 
         <section class="cv-section">
           <h2 data-i18n="skillsSection">المهارات</h2>
-          <ul id="previewSkills"></ul>
+          <div class="skills-grid">
+            <div>
+              <h3 data-i18n="hardSkillsLabel" class="skills-sub-title">Hard Skills</h3>
+              <ul id="previewHardSkills"></ul>
+            </div>
+            <div>
+              <h3 data-i18n="softSkillsLabel" class="skills-sub-title">Soft Skills</h3>
+              <ul id="previewSoftSkills"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="cv-section">
+          <h2 data-i18n="languagesSection">اللغات</h2>
+          <div id="previewLanguages"></div>
         </section>
       </article>
     </main>

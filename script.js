@@ -1,17 +1,24 @@
-﻿const form = document.getElementById("cvForm");
+const form = document.getElementById("cvForm");
 const printBtn = document.getElementById("printBtn");
 const languageSelect = document.getElementById("languageSelect");
 const addExperienceBtn = document.getElementById("addExperienceBtn");
 const addEducationBtn = document.getElementById("addEducationBtn");
 const addProjectBtn = document.getElementById("addProjectBtn");
+const addLanguageBtn = document.getElementById("addLanguageBtn");
 const importPdfBtn = document.getElementById("importPdfBtn");
+const downloadWordBtn = document.getElementById("downloadWordBtn");
 const pdfUploadInput = document.getElementById("pdfUploadInput");
 const pdfImportStatus = document.getElementById("pdfImportStatus");
 const experienceItems = document.getElementById("experienceItems");
 const educationItems = document.getElementById("educationItems");
 const projectItems = document.getElementById("projectItems");
+const languageItems = document.getElementById("languageItems");
 let importStatusKey = "importPdfStatusReady";
 const pdfJsCandidates = [
+  {
+    lib: "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js",
+    worker: "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js"
+  },
   {
     lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
     worker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
@@ -34,7 +41,9 @@ const fields = {
   experience: document.getElementById("previewExperience"),
   education: document.getElementById("previewEducation"),
   projects: document.getElementById("previewProjects"),
-  skills: document.getElementById("previewSkills")
+    languages: document.getElementById("previewLanguages"),
+  hardSkills: document.getElementById("previewHardSkills"),
+  softSkills: document.getElementById("previewSoftSkills")
 };
 
 const i18n = {
@@ -64,20 +73,28 @@ const i18n = {
       projectsSection: "المشروعات",
       projectsHint: "أضف مشاريعك المهمة مع رابط GitHub لكل مشروع.",
       addProjectBtn: "+ إضافة مشروع",
+      languagesSection: "اللغات",
+      languagesHint: "أضف اللغات التي تتقنها مع تحديد المستوى.",
+      addLanguageBtn: "+ إضافة لغة",
       skillsSection: "المهارات",
-      skillsLabel: "المهارات (كل سطر مهارة)",
+      hardSkillsLabel: "المهارات التقنية (Hard Skills)",
+      softSkillsLabel: "المهارات الشخصية (Soft Skills)",
+      skillsHint: "كل سطر مهارة مستقلة",
       importPdfSection: "استيراد CV من PDF",
       importPdfHint: "ارفع ملف PDF وسيتم محاولة استخراج البيانات وملء الحقول تلقائيًا.",
       importPdfBtn: "استيراد من PDF",
       importPdfStatusReady: "جاهز لاستيراد ملف PDF.",
       importPdfStatusReading: "جاري تحليل ملف PDF واستخراج البيانات...",
       importPdfStatusDone: "تم استيراد البيانات بنجاح. يمكنك الآن التعديل والطباعة.",
-      importPdfStatusError: "حدث خطأ أثناء قراءة ملف PDF.",
+      importPdfStatusError: "حدث خطأ غير متوقع أثناء قراءة ملف PDF.",
+      importPdfStatusErrorLoad: "فشل تحميل ملف PDF. قد يكون الملف تالفاً أو محمياً بكلمة مرور.",
+      importPdfStatusErrorLib: "فشل تحميل مكتبة المعالجة. يرجى التأكد من استقرار الإنترنت.",
       importPdfStatusNoFile: "اختر ملف PDF أولًا.",
       importPdfStatusInvalidType: "الملف المختار ليس PDF صالحًا.",
       importPdfStatusNoText: "لم يتم العثور على نص قابل للاستخراج داخل هذا الملف.",
       importPdfStatusUnsupported: "مكتبة PDF غير متاحة. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.",
       printBtn: "طباعة / حفظ PDF",
+      downloadWordBtn: "تحميل Word",
       resetBtn: "إعادة ضبط",
       previewLabel: "معاينة ATS",
       atsBadge: "ATS Friendly",
@@ -101,7 +118,11 @@ const i18n = {
       projectDescLabel: "وصف المشروع",
       projectGithubLabel: "رابط GitHub",
       projectEntryTitle: "مشروع",
+      langNameLabel: "اللغة",
+      langLevelLabel: "المستوى",
+      langEntryTitle: "لغة",
       emptyProjects: "أضف مشاريعك من النموذج لتظهر هنا.",
+      emptyLanguages: "أضف اللغات من النموذج لتظهر هنا.",
       viewGithub: "عرض على GitHub",
       present: "الآن",
       emptyExperience: "أضف خبراتك من النموذج لتظهر هنا.",
@@ -116,7 +137,8 @@ const i18n = {
       phonePlaceholder: "+20 1xx xxx xxxx",
       addressPlaceholder: "القاهرة، مصر",
       websitePlaceholder: "linkedin.com/in/yourname",
-      skillsPlaceholder: "كل سطر سيظهر كبند مستقل",
+      hardSkillsPlaceholder: "مثال: React, Node.js, SQL",
+      softSkillsPlaceholder: "مثال: التواصل، العمل الجماعي، القيادة",
       expRolePlaceholder: "مثال: Senior Frontend Developer",
       expCompanyPlaceholder: "مثال: ABC Tech",
       expLocationPlaceholder: "مثال: القاهرة، مصر",
@@ -132,7 +154,9 @@ const i18n = {
       ,
       projectNamePlaceholder: "مثال: CV ATS Builder",
       projectDescPlaceholder: "مثال: مولّد سيرة ذاتية يدعم العربية والإنجليزية ومتوافق مع ATS",
-      projectGithubPlaceholder: "https://github.com/username/repository"
+      projectGithubPlaceholder: "https://github.com/username/repository",
+      langNamePlaceholder: "مثال: الإنجليزية",
+      langLevelPlaceholder: "مثال: ممتاز / طلق / B2"
     },
     defaults: {
       fullName: "اسمك الكامل",
@@ -167,6 +191,10 @@ const i18n = {
           description: "تطبيق ويب لإنشاء CV احترافي مع دعم عربي/إنجليزي ومعاينة مباشرة.",
           github: "https://github.com/RamezSameh/ATS-CV-Builder"
         }
+      ],
+      languages: [
+        { name: "العربية", level: "اللغة الأم" },
+        { name: "الإنجليزية", level: "طلاقة" }
       ]
     }
   },
@@ -196,20 +224,28 @@ const i18n = {
       projectsSection: "Projects",
       projectsHint: "Add your key projects and include a GitHub link for each one.",
       addProjectBtn: "+ Add Project",
+      languagesSection: "Languages",
+      languagesHint: "Add languages you speak and your proficiency level.",
+      addLanguageBtn: "+ Add Language",
       skillsSection: "Skills",
-      skillsLabel: "Skills (one skill per line)",
+      hardSkillsLabel: "Hard Skills",
+      softSkillsLabel: "Soft Skills",
+      skillsHint: "One skill per line",
       importPdfSection: "Import CV from PDF",
       importPdfHint: "Upload a PDF file and the app will try to extract and map your data automatically.",
       importPdfBtn: "Import from PDF",
       importPdfStatusReady: "Ready to import a PDF file.",
       importPdfStatusReading: "Analyzing PDF and extracting data...",
       importPdfStatusDone: "Data imported successfully. You can edit and print now.",
-      importPdfStatusError: "An error occurred while reading the PDF file.",
+      importPdfStatusError: "An unexpected error occurred while reading the PDF file.",
+      importPdfStatusErrorLoad: "Failed to load PDF file. The file might be corrupted or password protected.",
+      importPdfStatusErrorLib: "Failed to load the processing library. Please check your internet connection.",
       importPdfStatusNoFile: "Please choose a PDF file first.",
       importPdfStatusInvalidType: "The selected file is not a valid PDF.",
       importPdfStatusNoText: "No extractable text was found in this file.",
       importPdfStatusUnsupported: "PDF library is unavailable. Check your internet connection and try again.",
       printBtn: "Print / Save PDF",
+      downloadWordBtn: "Download Word",
       resetBtn: "Reset",
       previewLabel: "ATS Preview",
       atsBadge: "ATS Friendly",
@@ -233,7 +269,11 @@ const i18n = {
       projectDescLabel: "Project Description",
       projectGithubLabel: "GitHub URL",
       projectEntryTitle: "Project",
+      langNameLabel: "Language",
+      langLevelLabel: "Proficiency",
+      langEntryTitle: "Language",
       emptyProjects: "Add your projects from the form.",
+      emptyLanguages: "Add your languages from the form.",
       viewGithub: "View on GitHub",
       present: "Present",
       emptyExperience: "Add your experience details from the form.",
@@ -248,7 +288,8 @@ const i18n = {
       phonePlaceholder: "+1 xxx xxx xxxx",
       addressPlaceholder: "City, Country",
       websitePlaceholder: "linkedin.com/in/yourname",
-      skillsPlaceholder: "Each line will appear as a bullet item",
+      hardSkillsPlaceholder: "e.g. React, Node.js, SQL",
+      softSkillsPlaceholder: "e.g. Communication, Teamwork, Leadership",
       expRolePlaceholder: "Example: Senior Frontend Developer",
       expCompanyPlaceholder: "Example: ABC Tech",
       expLocationPlaceholder: "Example: Cairo, Egypt",
@@ -264,7 +305,9 @@ const i18n = {
       ,
       projectNamePlaceholder: "Example: ATS CV Builder",
       projectDescPlaceholder: "Example: A bilingual ATS-friendly CV generator with live preview",
-      projectGithubPlaceholder: "https://github.com/username/repository"
+      projectGithubPlaceholder: "https://github.com/username/repository",
+      langNamePlaceholder: "Example: English",
+      langLevelPlaceholder: "Example: Native / Fluent / B2"
     },
     defaults: {
       fullName: "Your Full Name",
@@ -299,6 +342,10 @@ const i18n = {
           description: "A web app to build bilingual ATS-friendly CVs with live preview.",
           github: "https://github.com/your-username/ats-cv-builder"
         }
+      ],
+      languages: [
+        { name: "English", level: "Native" },
+        { name: "Arabic", level: "Fluent" }
       ]
     }
   }
@@ -453,16 +500,51 @@ function createProjectItem(values = {}) {
   projectItems.appendChild(card);
 }
 
+function createLanguageItem(values = {}) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  card.innerHTML = `
+    <div class="entry-card-head">
+      <p class="entry-title"></p>
+      <button type="button" class="remove-entry-btn" data-entry-type="language" data-i18n="removeBtn">حذف</button>
+    </div>
+
+    <div class="entry-grid">
+      <label>
+        <span data-i18n="langNameLabel">اللغة</span>
+        <input type="text" data-field="name" data-i18n-placeholder="langNamePlaceholder">
+      </label>
+
+      <label>
+        <span data-i18n="langLevelLabel">المستوى</span>
+        <input type="text" data-field="level" data-i18n-placeholder="langLevelPlaceholder">
+      </label>
+    </div>
+  `;
+
+  card.querySelector('[data-field="name"]').value = values.name || "";
+  card.querySelector('[data-field="level"]').value = values.level || "";
+
+  languageItems.appendChild(card);
+}
+
 function buildTemplateEntries() {
   const locale = currentLocale();
 
   experienceItems.innerHTML = "";
   educationItems.innerHTML = "";
   projectItems.innerHTML = "";
+  languageItems.innerHTML = "";
 
   locale.templates.experience.forEach((item) => createExperienceItem(item));
   locale.templates.education.forEach((item) => createEducationItem(item));
   locale.templates.projects.forEach((item) => createProjectItem(item));
+  
+  if (locale.templates.languages) {
+    locale.templates.languages.forEach((item) => createLanguageItem(item));
+  } else {
+    createLanguageItem();
+  }
 }
 
 function setEntryTitles(locale) {
@@ -476,6 +558,10 @@ function setEntryTitles(locale) {
 
   projectItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
     title.textContent = `${locale.strings.projectEntryTitle} ${index + 1}`;
+  });
+
+  languageItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
+    title.textContent = `${locale.strings.langEntryTitle} ${index + 1}`;
   });
 }
 
@@ -539,6 +625,15 @@ function collectProjectEntries() {
       name: card.querySelector('[data-field="name"]').value.trim(),
       description: card.querySelector('[data-field="description"]').value.trim(),
       github: card.querySelector('[data-field="github"]').value.trim()
+    }))
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function collectLanguageEntries() {
+  return Array.from(languageItems.querySelectorAll(".entry-card"))
+    .map((card) => ({
+      name: card.querySelector('[data-field="name"]').value.trim(),
+      level: card.querySelector('[data-field="level"]').value.trim()
     }))
     .filter((item) => Object.values(item).some(Boolean));
 }
@@ -766,6 +861,45 @@ function renderProjects(entries, locale) {
   fields.projects.appendChild(list);
 }
 
+function renderLanguages(entries, locale) {
+  fields.languages.innerHTML = "";
+
+  if (!entries.length) {
+    const p = document.createElement("p");
+    p.className = "preview-empty";
+    p.textContent = locale.strings.emptyLanguages;
+    fields.languages.appendChild(p);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "preview-entry-list";
+
+  entries.forEach((entry) => {
+    const article = document.createElement("article");
+    article.className = "preview-entry";
+
+    const heading = document.createElement("div");
+    heading.className = "entry-head";
+
+    const name = document.createElement("p");
+    name.className = "entry-role";
+    name.textContent = entry.name || locale.strings.langNameLabel;
+
+    const level = document.createElement("p");
+    level.className = "entry-date";
+    level.textContent = entry.level;
+
+    heading.appendChild(name);
+    heading.appendChild(level);
+    article.appendChild(heading);
+
+    list.appendChild(article);
+  });
+
+  fields.languages.appendChild(list);
+}
+
 function updatePreview() {
   const locale = currentLocale();
   const data = new FormData(form);
@@ -782,7 +916,9 @@ function updatePreview() {
   renderExperience(collectExperienceEntries(), locale);
   renderEducation(collectEducationEntries(), locale);
   renderProjects(collectProjectEntries(), locale);
-  renderSimpleList(fields.skills, (data.get("skills") || "").toString(), locale);
+  renderSimpleList(fields.hardSkills, (data.get("hardSkills") || "").toString(), locale);
+  renderSimpleList(fields.softSkills, (data.get("softSkills") || "").toString(), locale);
+  renderLanguages(collectLanguageEntries(), locale);
 }
 
 function applyLanguage(language) {
@@ -817,22 +953,23 @@ async function ensurePdfJsLoaded() {
     return;
   }
 
-  if (window.pdfjsLib && !activePdfWorkerSrc) {
-    activePdfWorkerSrc = pdfJsCandidates[0].worker;
-    return;
-  }
-
   let lastError = null;
 
   for (const candidate of pdfJsCandidates) {
     try {
+      console.log(`Attempting to load PDF.js from: ${candidate.lib}`);
       await loadScript(candidate.lib);
 
       if (window.pdfjsLib) {
         activePdfWorkerSrc = candidate.worker;
-        return;
+        // Verify if the library is actually functional
+        if (typeof window.pdfjsLib.getDocument === 'function') {
+          console.log("PDF.js loaded successfully");
+          return;
+        }
       }
     } catch (error) {
+      console.warn(`Failed to load from ${candidate.lib}:`, error);
       lastError = error;
     }
   }
@@ -841,52 +978,124 @@ async function ensurePdfJsLoaded() {
 }
 
 async function extractTextFromPdfFile(file) {
-  await ensurePdfJsLoaded();
+  try {
+    await ensurePdfJsLoaded();
+  } catch (err) {
+    console.error("PDF.js initialization failed:", err);
+    throw new Error("pdf-library-missing");
+  }
 
   if (!window.pdfjsLib) {
     throw new Error("pdf-library-missing");
   }
 
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = activePdfWorkerSrc;
+  // Set worker source
+  if (activePdfWorkerSrc && window.pdfjsLib.GlobalWorkerOptions) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = activePdfWorkerSrc;
+  }
 
-  const data = await file.arrayBuffer();
-  const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+  let pdf;
+  try {
+    const data = await file.arrayBuffer();
+    // Use a simpler approach first, then fall back if needed
+    const loadingTask = window.pdfjsLib.getDocument({ 
+      data,
+      disableWorker: false,
+      isEvalSupported: true,
+      useSystemFonts: true // Added for better font compatibility
+    });
+    pdf = await loadingTask.promise;
+  } catch (err) {
+    console.error("PDF extraction failed at loading level:", err);
+    throw new Error("pdf-load-failed");
+  }
+
   const pages = [];
 
   for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
-    const page = await pdf.getPage(pageNo);
-    const content = await page.getTextContent();
-    const lines = [];
-    let currentLine = "";
-    let currentY = null;
+    try {
+      const page = await pdf.getPage(pageNo);
+      const content = await page.getTextContent();
+      
+      // Group by Y coordinate (using a small threshold for alignment)
+      const itemsByY = {};
+      const threshold = 5; 
 
-    content.items.forEach((item) => {
-      const text = (item.str || "").trim();
+      content.items.forEach((item) => {
+        const text = (item.str || "").trim();
+        if (!text) return;
 
-      if (!text) {
-        return;
-      }
+        const yRaw = item.transform[5];
+        // Find an existing group within threshold
+        let foundY = Object.keys(itemsByY).find(y => Math.abs(Number(y) - yRaw) < threshold);
+        
+        if (!foundY) {
+          foundY = yRaw.toString();
+          itemsByY[foundY] = [];
+        }
+        itemsByY[foundY].push(item);
+      });
 
-      const y = Math.round(item.transform[5]);
+      // Sort Y coordinates descending (top of page to bottom)
+      const sortedY = Object.keys(itemsByY)
+        .map(Number)
+        .sort((a, b) => b - a);
 
-      if (currentY !== null && Math.abs(y - currentY) > 2) {
-        if (currentLine) {
-          lines.push(currentLine.trim());
+      const pageLines = [];
+      sortedY.forEach((y) => {
+        const lineItems = itemsByY[y];
+        
+        // Sort items within a line by X coordinate
+        lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
+        
+        // Check if the line contains any RTL characters
+        const fullLineText = lineItems.map(item => item.str).join("");
+        const isRtl = /[\u0600-\u06FF]/.test(fullLineText);
+
+        let lineText = "";
+        if (isRtl) {
+          // Sort fragments by X descending for logical Arabic order
+          lineItems.sort((a, b) => b.transform[4] - a.transform[4]);
+          
+          for (let i = 0; i < lineItems.length; i++) {
+            const item = lineItems[i];
+            const nextItem = lineItems[i + 1];
+            lineText += item.str;
+            
+            if (nextItem) {
+              const currentX = item.transform[4];
+              const nextX = nextItem.transform[4];
+              const gap = Math.abs(currentX - nextX);
+              if (gap > 3) lineText += " ";
+            }
+          }
+        } else {
+          // LTR joining
+          for (let i = 0; i < lineItems.length; i++) {
+            const item = lineItems[i];
+            const nextItem = lineItems[i + 1];
+            lineText += item.str;
+            
+            if (nextItem) {
+              const currentX = item.transform[4];
+              const nextX = nextItem.transform[4];
+              const gap = Math.abs(nextX - currentX);
+              if (gap > 3) lineText += " ";
+            }
+          }
         }
 
-        currentLine = text;
-      } else {
-        currentLine = currentLine ? `${currentLine} ${text}` : text;
-      }
+        const cleanLine = lineText.replace(/\s{2,}/g, " ").trim();
+        if (cleanLine) {
+          pageLines.push(cleanLine);
+        }
+      });
 
-      currentY = y;
-    });
-
-    if (currentLine) {
-      lines.push(currentLine.trim());
+      pages.push(pageLines.join("\n"));
+    } catch (pageErr) {
+      console.warn(`Could not process page ${pageNo}:`, pageErr);
+      continue; // Skip failed page instead of failing entire document
     }
-
-    pages.push(lines.join("\n"));
   }
 
   return pages.join("\n");
@@ -900,11 +1109,11 @@ function splitCleanLines(text) {
 }
 
 function stripListPrefix(line) {
-  return line.replace(/^[-*•●▪◦]+\s*/, "").trim();
+  return line.replace(/^[-*•●▪◦\u2022\u2023\u25E6\u2043\u2219]+\s*/, "").trim();
 }
 
 function isLikelyContactLine(line) {
-  return /@|linkedin|github|https?:\/\/|www\.|(\+?\d[\d\s().-]{7,}\d)/i.test(line);
+  return /@|linkedin|github|https?:\/\/|www\.|(\+?\d[\d\s().-]{7,}\d)|(phone|tel|email|mail|البريد|الهاتف|رقم|موقع|العنوان|address):/i.test(line);
 }
 
 function getSectionKey(line) {
@@ -912,38 +1121,45 @@ function getSectionKey(line) {
   const isShortHeading = clean.split(" ").length <= 5;
 
   if (
-    /^(summary|profile|about|objective|professional summary|ملخص|نبذة|نبذة مختصرة)$/.test(clean) ||
-    (isShortHeading && /(summary|profile|objective|ملخص|نبذة)/.test(clean))
+    /^(summary|profile|about|objective|professional summary|ملخص|نبذة|نبذة مختصرة|عني|من أنا)$/.test(clean) ||
+    (isShortHeading && /(summary|profile|objective|ملخص|نبذة|عني)/.test(clean))
   ) {
     return "summary";
   }
 
   if (
-    /^(experience|work experience|professional experience|employment history|الخبرات|الخبرة)$/.test(clean) ||
-    (isShortHeading && /(experience|employment|الخبرات|الخبرة)/.test(clean))
+    /^(experience|work experience|professional experience|employment history|الخبرات|الخبرة|الخبرة العملية|التاريخ الوظيفي|سيرة مهنية)$/.test(clean) ||
+    (isShortHeading && /(experience|employment|الخبرات|الخبرة|وظيفي|مهنية)/.test(clean))
   ) {
     return "experience";
   }
 
   if (
-    /^(education|academic background|التعليم|المؤهلات)$/.test(clean) ||
-    (isShortHeading && /(education|academic|التعليم|المؤهلات)/.test(clean))
+    /^(education|academic background|academic qualifications|التعليم|المؤهلات|المؤهلات العلمية|الدراسة)$/.test(clean) ||
+    (isShortHeading && /(education|academic|التعليم|المؤهلات|الدراسة)/.test(clean))
   ) {
     return "education";
   }
 
   if (
-    /^(skills|technical skills|core skills|المهارات)$/.test(clean) ||
-    (isShortHeading && /(skills|technical skills|المهارات)/.test(clean))
+    /^(skills|technical skills|core skills|competencies|المهارات|المهارات التقنية|المهارات الشخصية|أبرز المهارات)$/.test(clean) ||
+    (isShortHeading && /(skills|technical skills|المهارات|قدرات)/.test(clean))
   ) {
     return "skills";
   }
 
   if (
-    /^(projects|project|selected projects|المشروعات|المشاريع)$/.test(clean) ||
-    (isShortHeading && /(projects|project|المشروعات|المشاريع)/.test(clean))
+    /^(projects|project|selected projects|portfolio|المشروعات|المشاريع|أعمالي|معرض الأعمال)$/.test(clean) ||
+    (isShortHeading && /(projects|project|المشروعات|المشاريع|أعمالي)/.test(clean))
   ) {
     return "projects";
+  }
+
+  if (
+    /^(languages|language proficiency|اللغات|اللغة)$/.test(clean) ||
+    (isShortHeading && /(languages|اللغات)/.test(clean))
+  ) {
+    return "languages";
   }
 
   return "";
@@ -965,7 +1181,8 @@ function extractSections(lines) {
     experience: [],
     education: [],
     skills: [],
-    projects: []
+    projects: [],
+    languages: []
   };
 
   if (!markers.length) {
@@ -978,7 +1195,10 @@ function extractSections(lines) {
   markers.forEach((marker, idx) => {
     const start = marker.index + 1;
     const end = idx + 1 < markers.length ? markers[idx + 1].index : lines.length;
-    sections[marker.key] = lines.slice(start, end).filter(Boolean);
+    
+    // Add lines to the section, but skip subsequent markers if they are within the range
+    // Actually the current logic is fine as it uses the next marker index as 'end'
+    sections[marker.key] = sections[marker.key].concat(lines.slice(start, end).filter(Boolean));
   });
 
   return {
@@ -1002,8 +1222,17 @@ function parseSkills(sectionLines) {
 }
 
 function extractDateRange(line) {
-  const dateRangePattern =
-    /((?:\d{4}|[A-Za-z]{3,9}\s+\d{4}|(?:يناير|فبراير|مارس|إبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s+\d{4})\s*(?:-|–|—|to|الى|إلى)\s*(?:\d{4}|present|current|now|الآن|حتى الآن|[A-Za-z]{3,9}\s+\d{4}|(?:يناير|فبراير|مارس|إبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s+\d{4}))/i;
+  const monthsAr = "يناير|فبراير|مارس|إبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر";
+  const monthsEn = "january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+  const separators = "-|–|—|to|الى|إلى|حتى|until|till";
+  const presentTerms = "present|current|now|الآن|حتى الآن|الوقت الحالي|الحاضر|حتى الوقت الحالي|ongoing";
+  
+  const datePattern = `(?:\\d{4}|(?:${monthsAr}|${monthsEn})\\s+\\d{4}|(?:${monthsAr}|${monthsEn})\\s*\\d{2,4})`;
+  const dateRangePattern = new RegExp(
+    `(${datePattern}\\s*(?:${separators})\\s*(?:${datePattern}|${presentTerms}))|(${datePattern})`,
+    "i"
+  );
+  
   const match = line.match(dateRangePattern);
 
   if (!match) {
@@ -1015,7 +1244,9 @@ function extractDateRange(line) {
   }
 
   const range = match[0];
-  const [start = "", end = ""] = range.split(/\s*(?:-|–|—|to|الى|إلى)\s*/i);
+  const parts = range.split(new RegExp(`\\s*(?:${separators})\\s*`, "i"));
+  const start = parts[0] || "";
+  const end = parts[1] || "";
 
   return {
     start: start.trim(),
@@ -1039,13 +1270,20 @@ function splitIntoBlocks(lines) {
   let current = [];
 
   cleaned.forEach((line) => {
-    const hasDate = Boolean(extractDateRange(line).start);
+    const dateInfo = extractDateRange(line);
+    const hasDate = Boolean(dateInfo.start);
+    const isHeaderCandidate = looksLikeTitle(line) && line.split(" ").length <= 8;
+    
+    // Logic to start a new block:
+    // 1. Current line has a date AND current block already has a date.
+    // 2. Current line looks like a title AND current block is already quite long.
     const currentHasDate = current.some((entry) => Boolean(extractDateRange(entry).start));
+    
     const startNewBlock =
       current.length > 0 &&
       (
         (hasDate && currentHasDate) ||
-        (looksLikeTitle(line) && current.length >= 3 && !line.startsWith("http"))
+        (isHeaderCandidate && current.length >= 2 && !line.startsWith("http"))
       );
 
     if (startNewBlock) {
@@ -1065,7 +1303,8 @@ function splitIntoBlocks(lines) {
 }
 
 function splitRoleCompany(text) {
-  const patterns = [/\s+\|\s+/, /\s+-\s+/, /\s+@\s+/i, /\s+at\s+/i, /\s+في\s+/];
+  // Common separators including Arabic comma
+  const patterns = [/\s+\|\s+/, /\s+-\s+/, /\s+–\s+/, /\s+—\s+/, /\s+@\s+/i, /\s+at\s+/i, /\s+في\s+/, /\s+،\s+/, /\s+,\s+/, /\s*:\s*/];
 
   for (const pattern of patterns) {
     if (pattern.test(text)) {
@@ -1074,7 +1313,7 @@ function splitRoleCompany(text) {
       if (parts.length >= 2) {
         return {
           first: parts[0],
-          second: parts[1]
+          second: parts.slice(1).join(" | ")
         };
       }
     }
@@ -1091,19 +1330,31 @@ function parseExperience(sectionLines) {
 
   return blocks
     .map((block) => {
-      const firstLine = block[0] || "";
-      const dateInfo = extractDateRange(firstLine);
-      const roleCompany = splitRoleCompany(dateInfo.cleanLine || firstLine);
-      const fallbackSecond = block[1] && !isLikelyContactLine(block[1]) ? block[1] : "";
-      const achievementsStart = fallbackSecond ? 2 : 1;
+      // Find the line that likely contains the title/company
+      // Often it's the first line or the line with the date
+      let headerLineIndex = block.findIndex(line => extractDateRange(line).start) || 0;
+      if (headerLineIndex === -1) headerLineIndex = 0;
+      
+      const headerLine = block[headerLineIndex];
+      const dateInfo = extractDateRange(headerLine);
+      const roleCompany = splitRoleCompany(dateInfo.cleanLine || headerLine);
+      
+      // If company is empty, check if the next line looks like a company name
+      let company = roleCompany.second;
+      let achievementsStart = headerLineIndex + 1;
+      
+      if (!company && block[headerLineIndex + 1] && looksLikeTitle(block[headerLineIndex + 1])) {
+        company = block[headerLineIndex + 1];
+        achievementsStart = headerLineIndex + 2;
+      }
 
       return {
         role: roleCompany.first,
-        company: roleCompany.second || fallbackSecond,
+        company: company,
         location: "",
         start: dateInfo.start,
         end: dateInfo.end,
-        achievements: block.slice(achievementsStart).join("\n")
+        achievements: block.filter((_, i) => i !== headerLineIndex && (company ? i !== headerLineIndex + 1 : true)).join("\n")
       };
     })
     .filter((item) => Object.values(item).some(Boolean));
@@ -1114,19 +1365,28 @@ function parseEducation(sectionLines) {
 
   return blocks
     .map((block) => {
-      const firstLine = block[0] || "";
-      const dateInfo = extractDateRange(firstLine);
-      const degreeInstitution = splitRoleCompany(dateInfo.cleanLine || firstLine);
-      const fallbackInstitution = block[1] && !isLikelyContactLine(block[1]) ? block[1] : "";
-      const detailsStart = fallbackInstitution ? 2 : 1;
+      let headerLineIndex = block.findIndex(line => extractDateRange(line).start) || 0;
+      if (headerLineIndex === -1) headerLineIndex = 0;
+
+      const headerLine = block[headerLineIndex];
+      const dateInfo = extractDateRange(headerLine);
+      const degreeInstitution = splitRoleCompany(dateInfo.cleanLine || headerLine);
+      
+      let institution = degreeInstitution.second;
+      let detailsStart = headerLineIndex + 1;
+
+      if (!institution && block[headerLineIndex + 1] && looksLikeTitle(block[headerLineIndex + 1])) {
+        institution = block[headerLineIndex + 1];
+        detailsStart = headerLineIndex + 2;
+      }
 
       return {
         degree: degreeInstitution.first,
-        institution: degreeInstitution.second || fallbackInstitution,
+        institution: institution,
         location: "",
         start: dateInfo.start,
         end: dateInfo.end,
-        details: block.slice(detailsStart).join("\n")
+        details: block.filter((_, i) => i !== headerLineIndex && (institution ? i !== headerLineIndex + 1 : true)).join("\n")
       };
     })
     .filter((item) => Object.values(item).some(Boolean));
@@ -1157,6 +1417,21 @@ function parseProjects(sectionLines) {
     .filter((item) => Object.values(item).some(Boolean));
 }
 
+function parseLanguages(sectionLines) {
+  const tokens = [];
+
+  sectionLines.forEach((line) => {
+    const parts = line.split(/[:\-–—،,]/).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      tokens.push({ name: parts[0], level: parts.slice(1).join(" ") });
+    } else if (parts.length === 1) {
+      tokens.push({ name: parts[0], level: "" });
+    }
+  });
+
+  return tokens.slice(0, 10);
+}
+
 function parseCvText(rawText) {
   const lines = splitCleanLines(rawText);
   const fullText = lines.join(" \n ");
@@ -1166,19 +1441,47 @@ function parseCvText(rawText) {
   const emailMatch = fullText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
   const phoneMatch = fullText.match(/(\+?\d[\d\s().-]{7,}\d)/);
   const websiteMatch = fullText.match(/((https?:\/\/)?(www\.)?(linkedin\.com\/[^\s|,]+|github\.com\/[^\s|,]+|[a-z0-9-]+\.[a-z]{2,}(\/[^\s|,]*)?))/i);
+  
+  const nameBlacklist = /^(curriculum vitae|resume|cv|سيرة ذاتية|صفحة|page|contact|email|phone|address|linkedin|github|portfolio)$/i;
   const nameCandidates = topLines.filter((line) => {
     const wordCount = line.split(" ").length;
-    return wordCount >= 2 && wordCount <= 5 && !isLikelyContactLine(line) && !getSectionKey(line);
+    return wordCount >= 2 && wordCount <= 5 && !isLikelyContactLine(line) && !getSectionKey(line) && !nameBlacklist.test(line);
   });
+  
   const fullName = nameCandidates[0] || "";
-  const jobTitle = topLines.find((line) => line !== fullName && !isLikelyContactLine(line) && !getSectionKey(line)) || "";
-  const summary = (sections.summary.length ? sections.summary : lines.slice(2, 6)).slice(0, 5).join("\n");
+  const jobTitle = topLines.find((line) => 
+    line !== fullName && 
+    !isLikelyContactLine(line) && 
+    !getSectionKey(line) && 
+    !nameBlacklist.test(line) &&
+    line.split(" ").length <= 8
+  ) || "";
+  
+  const summary = (sections.summary.length ? sections.summary : lines.slice(2, 8))
+    .filter(line => !isLikelyContactLine(line) && line !== fullName && line !== jobTitle)
+    .slice(0, 5)
+    .join("\n");
+    
   const address =
-    topLines.find((line) => /,|،/.test(line) && !isLikelyContactLine(line) && line.split(" ").length <= 8) || "";
-  const skills = parseSkills(sections.skills);
+    topLines.find((line) => 
+      /,|،/.test(line) && 
+      !isLikelyContactLine(line) && 
+      line.split(" ").length <= 10 &&
+      line !== fullName &&
+      line !== jobTitle
+    ) || "";
+
+  // Split skills into hard and soft
+  const allSkills = parseSkills(sections.skills);
+  const softSkillsKeywords = /communication|leadership|teamwork|problem solving|time management|adaptability|creativity|work ethic|التواصل|القيادة|العمل الجماعي|حل المشكلات|إدارة الوقت|التكيف|الإبداع/i;
+  
+  const softSkills = allSkills.filter(s => softSkillsKeywords.test(s));
+  const hardSkills = allSkills.filter(s => !softSkillsKeywords.test(s));
+
   const experience = parseExperience(sections.experience);
   const education = parseEducation(sections.education);
   const projects = parseProjects(sections.projects);
+  const languages = parseLanguages(sections.languages);
 
   return {
     fullName,
@@ -1188,10 +1491,12 @@ function parseCvText(rawText) {
     phone: phoneMatch ? phoneMatch[0] : "",
     website: websiteMatch ? websiteMatch[0] : "",
     address,
-    skills,
+    hardSkills,
+    softSkills,
     experience,
     education,
-    projects
+    projects,
+    languages
   };
 }
 
@@ -1222,11 +1527,13 @@ function fillFormFromParsedCv(parsed) {
   setFormValue("phone", parsed.phone);
   setFormValue("address", parsed.address);
   setFormValue("website", parsed.website);
-  setFormValue("skills", (parsed.skills || []).join("\n"));
+  setFormValue("hardSkills", (parsed.hardSkills || parsed.skills || []).join("\n"));
+  setFormValue("softSkills", (parsed.softSkills || []).join("\n"));
 
   fillEntriesFromParsedData(experienceItems, parsed.experience || [], createExperienceItem);
   fillEntriesFromParsedData(educationItems, parsed.education || [], createEducationItem);
   fillEntriesFromParsedData(projectItems, parsed.projects || [], createProjectItem);
+  fillEntriesFromParsedData(languageItems, parsed.languages || [], createLanguageItem);
 
   applyLanguage(languageSelect.value);
 }
@@ -1246,9 +1553,15 @@ function addEmptyProject() {
   applyLanguage(languageSelect.value);
 }
 
+function addEmptyLanguage() {
+  createLanguageItem();
+  applyLanguage(languageSelect.value);
+}
+
 addExperienceBtn.addEventListener("click", addEmptyExperience);
 addEducationBtn.addEventListener("click", addEmptyEducation);
 addProjectBtn.addEventListener("click", addEmptyProject);
+addLanguageBtn.addEventListener("click", addEmptyLanguage);
 
 form.addEventListener("click", (event) => {
   const removeBtn = event.target.closest(".remove-entry-btn");
@@ -1274,6 +1587,10 @@ form.addEventListener("click", (event) => {
 
   if (type === "project" && projectItems.children.length === 0) {
     createProjectItem();
+  }
+
+  if (type === "language" && languageItems.children.length === 0) {
+    createLanguageItem();
   }
 
   applyLanguage(languageSelect.value);
@@ -1306,31 +1623,198 @@ importPdfBtn.addEventListener("click", async () => {
   }
 
   setImportStatus("importPdfStatusReading");
+  importPdfBtn.disabled = true;
+  pdfUploadInput.disabled = true;
 
   try {
     const text = await extractTextFromPdfFile(file);
 
     if (!text.trim()) {
       setImportStatus("importPdfStatusNoText");
+      importPdfBtn.disabled = false;
+      pdfUploadInput.disabled = false;
       return;
     }
 
     const parsed = parseCvText(text);
+    if (!parsed) throw new Error("parsing-failed");
+    
     fillFormFromParsedCv(parsed);
     setImportStatus("importPdfStatusDone");
   } catch (error) {
+    console.error("PDF Import Error:", error);
     if (error && error.message === "pdf-library-missing") {
-      setImportStatus("importPdfStatusUnsupported");
-      return;
+      setImportStatus("importPdfStatusErrorLib");
+    } else if (error && error.message === "pdf-load-failed") {
+      setImportStatus("importPdfStatusErrorLoad");
+    } else if (error && error.message === "parsing-failed") {
+      setImportStatus("importPdfStatusError");
+    } else {
+      // For any other runtime errors (like property access on undefined)
+      setImportStatus("importPdfStatusError");
     }
-
-    setImportStatus("importPdfStatusError");
+  } finally {
+    importPdfBtn.disabled = false;
+    pdfUploadInput.disabled = false;
   }
 });
 
 printBtn.addEventListener("click", () => {
   window.print();
 });
+
+downloadWordBtn.addEventListener("click", () => {
+  exportToWord();
+});
+
+async function exportToWord() {
+  const locale = currentLocale();
+  const data = new FormData(form);
+  
+  const fullName = (data.get("fullName") || "").toString().trim() || locale.defaults.fullName;
+  const jobTitle = (data.get("jobTitle") || "").toString().trim() || locale.defaults.jobTitle;
+  const email = (data.get("email") || "").toString().trim();
+  const phone = (data.get("phone") || "").toString().trim();
+  const address = (data.get("address") || "").toString().trim();
+  const website = (data.get("website") || "").toString().trim();
+  const summary = (data.get("summary") || "").toString().trim();
+  const hardSkills = linesFromValue((data.get("hardSkills") || "").toString());
+  const softSkills = linesFromValue((data.get("softSkills") || "").toString());
+  
+  const experience = collectExperienceEntries();
+  const education = collectEducationEntries();
+  const projects = collectProjectEntries();
+  const languages = collectLanguageEntries();
+  const certifications = collectCertificationEntries();
+
+  // Create HTML content for Word
+  const htmlContent = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset="utf-8">
+      <title>${fullName} - CV</title>
+      <style>
+        body { font-family: 'Arial', sans-serif; line-height: 1.4; color: #333; }
+        .header { border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
+        h1 { font-size: 24pt; margin: 0; color: #000; }
+        .job-title { font-size: 14pt; font-weight: bold; color: #444; margin-top: 5px; }
+        .contact { font-size: 10pt; color: #666; margin-top: 5px; }
+        .section-title { font-size: 14pt; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ccc; margin-top: 20px; margin-bottom: 10px; color: #000; }
+        .entry { margin-bottom: 15px; }
+        .entry-head { font-weight: bold; display: flex; justify-content: space-between; }
+        .entry-sub { color: #555; font-style: italic; margin-bottom: 5px; }
+        ul { margin-top: 5px; margin-bottom: 5px; }
+        li { margin-bottom: 3px; }
+      </style>
+    </head>
+    <body style="${locale.dir === 'rtl' ? 'direction: rtl;' : 'direction: ltr;'}">
+      <div class="header">
+        <h1>${fullName}</h1>
+        <div class="job-title">${jobTitle}</div>
+        <div class="contact">
+          ${[email, phone, address, website].filter(Boolean).join(" | ")}
+        </div>
+      </div>
+
+      ${summary ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.summarySection}</div>
+          <p>${summary}</p>
+        </div>
+      ` : ''}
+
+      ${experience.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.experienceSection}</div>
+          ${experience.map(exp => `
+            <div class="entry">
+              <div class="entry-head">
+                <span>${exp.role}</span>
+                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${exp.start} - ${exp.end || locale.strings.present}</span>
+              </div>
+              <div class="entry-sub">${[exp.company, exp.location].filter(Boolean).join(" | ")}</div>
+              <ul>
+                ${linesFromValue(exp.achievements).map(a => `<li>${a}</li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${education.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.educationSection}</div>
+          ${education.map(edu => `
+            <div class="entry">
+              <div class="entry-head">
+                <span>${edu.degree}</span>
+                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${edu.start} - ${edu.end}</span>
+              </div>
+              <div class="entry-sub">${[edu.institution, edu.location].filter(Boolean).join(" | ")}</div>
+              <ul>
+                ${linesFromValue(edu.details).map(d => `<li>${d}</li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${projects.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.projectsSection}</div>
+          ${projects.map(proj => `
+            <div class="entry">
+              <div class="entry-head">${proj.name}</div>
+              <div class="entry-sub">${proj.description}</div>
+              ${proj.github ? `<div style="font-size: 9pt; color: blue;">${proj.github}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${hardSkills.length ? `
+        <div class="section">
+          <div class="section-title">Hard Skills</div>
+          <ul>
+            ${hardSkills.map(s => `<li>${s}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+
+      ${softSkills.length ? `
+        <div class="section">
+          <div class="section-title">Soft Skills</div>
+          <ul>
+            ${softSkills.map(s => `<li>${s}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+
+      ${languages.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.languagesSection}</div>
+          <ul>
+            ${languages.map(l => `<li><strong>${l.name}:</strong> ${l.level}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff', htmlContent], {
+    type: 'application/msword'
+  });
+  
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${fullName.replace(/\s+/g, '_')}_CV.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 buildTemplateEntries();
 applyLanguage(languageSelect.value);
