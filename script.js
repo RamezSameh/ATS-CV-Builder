@@ -13,6 +13,11 @@ const experienceItems = document.getElementById("experienceItems");
 const educationItems = document.getElementById("educationItems");
 const projectItems = document.getElementById("projectItems");
 const languageItems = document.getElementById("languageItems");
+const sampleDataBtn = document.getElementById("sampleDataBtn");
+const atsScoreRing = document.getElementById("atsScoreRing");
+const atsScoreValue = document.getElementById("atsScoreValue");
+const atsScoreVerdict = document.getElementById("atsScoreVerdict");
+const atsChecklist = document.getElementById("atsChecklist");
 let importStatusKey = "importPdfStatusReady";
 const pdfJsCandidates = [
   {
@@ -127,7 +132,23 @@ const i18n = {
       present: "الآن",
       emptyExperience: "أضف خبراتك من النموذج لتظهر هنا.",
       emptyEducation: "أضف بيانات التعليم من النموذج لتظهر هنا.",
-      emptyListItem: "أضف بيانات في النموذج"
+      emptyListItem: "أضف بيانات في النموذج",
+      atsScoreTitle: "فحص التوافق مع ATS",
+      atsCheckName: "الاسم الكامل موجود",
+      atsCheckJobTitle: "المسمى الوظيفي موجود",
+      atsCheckSummary: "النبذة 40 حرفًا على الأقل",
+      atsCheckEmail: "بريد إلكتروني بصيغة صحيحة",
+      atsCheckPhone: "رقم هاتف موجود",
+      atsCheckExperience: "خبرة عملية واحدة على الأقل",
+      atsCheckAchievements: "إنجازات قابلة للقياس (أرقام)",
+      atsCheckSkills: "5 مهارات تقنية على الأقل",
+      atsCheckEducation: "بيانات التعليم موجودة",
+      atsCheckWebsite: "رابط لينكدإن / موقع موجود",
+      atsVerdictExcellent: "ممتاز! سيرتك متوافقة مع أنظمة ATS",
+      atsVerdictGood: "جيد، لكن هناك نقاط يمكن تحسينها",
+      atsVerdictNeedsWork: "تحتاج لتحسين قبل التقديم على الوظائف",
+      sampleDataBtn: "املأ بيانات تجريبية",
+      sampleDataConfirm: "سيتم استبدال البيانات الحالية ببيانات تجريبية. متابعة؟"
     },
     placeholders: {
       fullNamePlaceholder: "مثال: محمد أحمد",
@@ -278,7 +299,23 @@ const i18n = {
       present: "Present",
       emptyExperience: "Add your experience details from the form.",
       emptyEducation: "Add your education details from the form.",
-      emptyListItem: "Add data using the form"
+      emptyListItem: "Add data using the form",
+      atsScoreTitle: "ATS Compatibility Check",
+      atsCheckName: "Full name is present",
+      atsCheckJobTitle: "Job title is present",
+      atsCheckSummary: "Summary is at least 40 characters",
+      atsCheckEmail: "Valid email address",
+      atsCheckPhone: "Phone number is present",
+      atsCheckExperience: "At least one work experience",
+      atsCheckAchievements: "Measurable achievements (numbers)",
+      atsCheckSkills: "At least 5 hard skills",
+      atsCheckEducation: "Education details are present",
+      atsCheckWebsite: "LinkedIn / website link is present",
+      atsVerdictExcellent: "Excellent! Your CV is ATS-ready",
+      atsVerdictGood: "Good, but there is room for improvement",
+      atsVerdictNeedsWork: "Needs improvement before applying",
+      sampleDataBtn: "Load sample data",
+      sampleDataConfirm: "Current data will be replaced with sample data. Continue?"
     },
     placeholders: {
       fullNamePlaceholder: "Example: John Smith",
@@ -350,6 +387,298 @@ const i18n = {
     }
   }
 };
+
+const sampleData = {
+  ar: {
+    fullName: "محمد أحمد",
+    jobTitle: "Frontend Developer",
+    summary: "مطور واجهات أمامية بخبرة 3 سنوات في بناء تطبيقات ويب سريعة وتفاعلية باستخدام React وTypeScript. شغوف بتحسين تجربة المستخدم وأداء الصفحات، وعملت مع فرق متعددة التخصصات لتسليم منتجات عالية الجودة.",
+    email: "mohamed.ahmed@example.com",
+    phone: "+20 100 123 4567",
+    address: "القاهرة، مصر",
+    website: "linkedin.com/in/mohamed-ahmed",
+    hardSkills: "React\nTypeScript\nJavaScript\nHTML/CSS\nTailwind CSS\nGit\nREST APIs",
+    softSkills: "التواصل\nالعمل الجماعي\nحل المشكلات\nإدارة الوقت",
+    experience: [
+      {
+        role: "Frontend Developer",
+        company: "Tech Solutions",
+        location: "القاهرة، مصر",
+        start: "2023",
+        end: "الآن",
+        achievements: "طورت 5 صفحات هبوط رفعت معدل التحويل بنسبة 25%\nقللت زمن تحميل الصفحة من 4.2 إلى 1.8 ثانية\nقُدت ترحيل قاعدة الكود إلى TypeScript وقللت الأخطاء بنسبة 40%"
+      },
+      {
+        role: "Junior Web Developer",
+        company: "Digital Agency",
+        location: "الجيزة، مصر",
+        start: "2022",
+        end: "2023",
+        achievements: "بنيت أكثر من 10 مواقع تعريفية للعملاء\nحسّنت توافق المتصفحات ليعمل الموقع على 99% من المتصفحات"
+      }
+    ],
+    education: [
+      {
+        degree: "بكالوريوس حاسبات ومعلومات",
+        institution: "جامعة القاهرة",
+        location: "القاهرة، مصر",
+        start: "2018",
+        end: "2022",
+        details: "تقدير: جيد جدًا\nمشروع التخرج: منصة تعليمية تفاعلية"
+      }
+    ],
+    projects: [
+      {
+        name: "متجر إلكتروني",
+        description: "متجر كامل بسلة مشتريات ودفع إلكتروني باستخدام React وNode.js.",
+        github: "https://github.com/mohamed/ecommerce-store"
+      },
+      {
+        name: "تطبيق إدارة مهام",
+        description: "تطبيق مهام مع مزامنة لحظية وإشعارات باستخدام Firebase.",
+        github: "https://github.com/mohamed/task-manager"
+      }
+    ],
+    languages: [
+      { name: "العربية", level: "اللغة الأم" },
+      { name: "الإنجليزية", level: "ممتاز" }
+    ]
+  },
+  en: {
+    fullName: "Mohamed Ahmed",
+    jobTitle: "Frontend Developer",
+    summary: "Frontend developer with 3 years of experience building fast, interactive web apps with React and TypeScript. Passionate about UX and page performance, and experienced working with cross-functional teams to ship high-quality products.",
+    email: "mohamed.ahmed@example.com",
+    phone: "+20 100 123 4567",
+    address: "Cairo, Egypt",
+    website: "linkedin.com/in/mohamed-ahmed",
+    hardSkills: "React\nTypeScript\nJavaScript\nHTML/CSS\nTailwind CSS\nGit\nREST APIs",
+    softSkills: "Communication\nTeamwork\nProblem solving\nTime management",
+    experience: [
+      {
+        role: "Frontend Developer",
+        company: "Tech Solutions",
+        location: "Cairo, Egypt",
+        start: "2023",
+        end: "Present",
+        achievements: "Built 5 landing pages that raised conversion rate by 25%\nCut page load time from 4.2s to 1.8s\nLed the TypeScript migration, reducing bugs by 40%"
+      },
+      {
+        role: "Junior Web Developer",
+        company: "Digital Agency",
+        location: "Giza, Egypt",
+        start: "2022",
+        end: "2023",
+        achievements: "Built 10+ marketing websites for clients\nImproved cross-browser compatibility to 99% coverage"
+      }
+    ],
+    education: [
+      {
+        degree: "B.Sc. Computer Science",
+        institution: "Cairo University",
+        location: "Cairo, Egypt",
+        start: "2018",
+        end: "2022",
+        details: "Grade: Very Good\nGraduation project: interactive learning platform"
+      }
+    ],
+    projects: [
+      {
+        name: "E-commerce Store",
+        description: "Full store with cart and online payments built with React and Node.js.",
+        github: "https://github.com/mohamed/ecommerce-store"
+      },
+      {
+        name: "Task Manager App",
+        description: "Task app with realtime sync and notifications using Firebase.",
+        github: "https://github.com/mohamed/task-manager"
+      }
+    ],
+    languages: [
+      { name: "Arabic", level: "Native" },
+      { name: "English", level: "Fluent" }
+    ]
+  }
+};
+
+const STORAGE_KEY = "atsCvBuilderState.v1";
+
+function collectFormState() {
+  const data = new FormData(form);
+  const get = (key) => (data.get(key) || "").toString();
+
+  return {
+    language: languageSelect.value,
+    fields: {
+      fullName: get("fullName"),
+      jobTitle: get("jobTitle"),
+      summary: get("summary"),
+      email: get("email"),
+      phone: get("phone"),
+      address: get("address"),
+      website: get("website"),
+      hardSkills: get("hardSkills"),
+      softSkills: get("softSkills")
+    },
+    experience: collectExperienceEntries(),
+    education: collectEducationEntries(),
+    projects: collectProjectEntries(),
+    languages: collectLanguageEntries()
+  };
+}
+
+function saveFormState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
+  } catch (error) {
+    /* storage unavailable or quota exceeded - ignore */
+  }
+}
+
+let saveTimer = null;
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveFormState, 400);
+}
+
+function restoreFormState() {
+  let state = null;
+
+  try {
+    state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+  } catch (error) {
+    return false;
+  }
+
+  if (!state || !state.fields) {
+    return false;
+  }
+
+  if (state.language && i18n[state.language]) {
+    languageSelect.value = state.language;
+  }
+
+  Object.entries(state.fields).forEach(([key, value]) => {
+    if (form.elements[key]) {
+      form.elements[key].value = value || "";
+    }
+  });
+
+  experienceItems.innerHTML = "";
+  educationItems.innerHTML = "";
+  projectItems.innerHTML = "";
+  languageItems.innerHTML = "";
+
+  (state.experience || []).forEach((entry) => createExperienceItem(entry));
+  (state.education || []).forEach((entry) => createEducationItem(entry));
+  (state.projects || []).forEach((entry) => createProjectItem(entry));
+  (state.languages || []).forEach((entry) => createLanguageItem(entry));
+
+  if (!experienceItems.children.length) createExperienceItem();
+  if (!educationItems.children.length) createEducationItem();
+  if (!projectItems.children.length) createProjectItem();
+  if (!languageItems.children.length) createLanguageItem();
+
+  return true;
+}
+
+function computeAtsScore() {
+  const data = new FormData(form);
+  const get = (key) => (data.get(key) || "").toString().trim();
+  const checks = [];
+
+  checks.push({ key: "atsCheckName", passed: get("fullName").length >= 3 });
+  checks.push({ key: "atsCheckJobTitle", passed: get("jobTitle").length >= 2 });
+  checks.push({ key: "atsCheckSummary", passed: get("summary").length >= 40 });
+  checks.push({ key: "atsCheckEmail", passed: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(get("email")) });
+  checks.push({ key: "atsCheckPhone", passed: get("phone").replace(/\D/g, "").length >= 7 });
+
+  const experience = collectExperienceEntries();
+  checks.push({ key: "atsCheckExperience", passed: experience.length > 0 });
+  checks.push({
+    key: "atsCheckAchievements",
+    passed: experience.some((entry) => /\d/.test(entry.achievements || ""))
+  });
+
+  checks.push({ key: "atsCheckSkills", passed: linesFromValue(get("hardSkills")).length >= 5 });
+  checks.push({ key: "atsCheckEducation", passed: collectEducationEntries().length > 0 });
+  checks.push({ key: "atsCheckWebsite", passed: get("website").length > 3 });
+
+  const passed = checks.filter((check) => check.passed).length;
+  const score = Math.round((passed / checks.length) * 100);
+
+  return { score, checks };
+}
+
+function renderAtsScore() {
+  if (!atsScoreRing) {
+    return;
+  }
+
+  const locale = currentLocale();
+  const { score, checks } = computeAtsScore();
+
+  atsScoreValue.textContent = score;
+  atsScoreRing.style.setProperty("--score", score);
+  atsScoreRing.classList.toggle("good", score >= 80);
+  atsScoreRing.classList.toggle("mid", score >= 50 && score < 80);
+  atsScoreRing.classList.toggle("low", score < 50);
+
+  atsScoreVerdict.textContent =
+    score >= 80
+      ? locale.strings.atsVerdictExcellent
+      : score >= 50
+        ? locale.strings.atsVerdictGood
+        : locale.strings.atsVerdictNeedsWork;
+
+  atsChecklist.innerHTML = "";
+
+  checks.forEach((check) => {
+    const li = document.createElement("li");
+    li.className = check.passed ? "pass" : "fail";
+
+    const icon = document.createElement("span");
+    icon.className = "check-icon";
+    icon.textContent = check.passed ? "✓" : "✕";
+
+    const label = document.createElement("span");
+    label.textContent = locale.strings[check.key] || check.key;
+
+    li.appendChild(icon);
+    li.appendChild(label);
+    atsChecklist.appendChild(li);
+  });
+}
+
+function fillSampleData() {
+  const locale = currentLocale();
+
+  if (!window.confirm(locale.strings.sampleDataConfirm)) {
+    return;
+  }
+
+  const sample = sampleData[languageSelect.value] || sampleData.ar;
+
+  ["fullName", "jobTitle", "summary", "email", "phone", "address", "website", "hardSkills", "softSkills"].forEach((key) => {
+    if (form.elements[key]) {
+      form.elements[key].value = sample[key] || "";
+    }
+  });
+
+  experienceItems.innerHTML = "";
+  educationItems.innerHTML = "";
+  projectItems.innerHTML = "";
+  languageItems.innerHTML = "";
+
+  sample.experience.forEach((entry) => createExperienceItem(entry));
+  sample.education.forEach((entry) => createEducationItem(entry));
+  sample.projects.forEach((entry) => createProjectItem(entry));
+  sample.languages.forEach((entry) => createLanguageItem(entry));
+
+  applyLanguage(languageSelect.value);
+  saveFormState();
+}
 
 function currentLocale() {
   return i18n[languageSelect.value] || i18n.ar;
@@ -919,6 +1248,8 @@ function updatePreview() {
   renderSimpleList(fields.hardSkills, (data.get("hardSkills") || "").toString(), locale);
   renderSimpleList(fields.softSkills, (data.get("softSkills") || "").toString(), locale);
   renderLanguages(collectLanguageEntries(), locale);
+  renderAtsScore();
+  scheduleSave();
 }
 
 function applyLanguage(language) {
@@ -1563,6 +1894,10 @@ addEducationBtn.addEventListener("click", addEmptyEducation);
 addProjectBtn.addEventListener("click", addEmptyProject);
 addLanguageBtn.addEventListener("click", addEmptyLanguage);
 
+if (sampleDataBtn) {
+  sampleDataBtn.addEventListener("click", fillSampleData);
+}
+
 form.addEventListener("click", (event) => {
   const removeBtn = event.target.closest(".remove-entry-btn");
 
@@ -1816,5 +2151,7 @@ async function exportToWord() {
   URL.revokeObjectURL(url);
 }
 
-buildTemplateEntries();
+if (!restoreFormState()) {
+  buildTemplateEntries();
+}
 applyLanguage(languageSelect.value);

@@ -123,7 +123,17 @@
           <p id="pdfImportStatus" class="import-status" aria-live="polite" data-i18n="importPdfStatusReady">جاهز لاستيراد ملف PDF.</p>
         </section>
 
+        <section class="ats-score-card">
+          <h2 data-i18n="atsScoreTitle">فحص التوافق مع ATS</h2>
+          <div class="ats-score-row">
+            <div class="ats-score-ring" id="atsScoreRing"><span id="atsScoreValue">0</span></div>
+            <p id="atsScoreVerdict" class="ats-verdict"></p>
+          </div>
+          <ul id="atsChecklist" class="ats-checklist"></ul>
+        </section>
+
         <div class="actions">
+          <button type="button" id="sampleDataBtn" class="secondary-btn" data-i18n="sampleDataBtn">املأ بيانات تجريبية</button>
           <button type="button" id="printBtn" class="primary-btn" data-i18n="printBtn">طباعة / حفظ PDF</button>
           <button type="button" id="downloadWordBtn" class="secondary-btn" data-i18n="downloadWordBtn">تحميل Word</button>
           <button type="reset" class="secondary-btn" data-i18n="resetBtn">إعادة ضبط</button>

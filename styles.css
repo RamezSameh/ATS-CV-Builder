@@ -571,3 +571,102 @@ html[dir="ltr"] .entry-detail-list {
     break-inside: avoid;
   }
 }
+
+/* ATS score card */
+.ats-score-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.ats-score-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.ats-score-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ats-score-ring {
+  --score: 0;
+  --ring-color: #dc2626;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--ring-color) calc(var(--score) * 1%), #e5e7eb 0);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ats-score-ring::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+.ats-score-ring span {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  font-size: 1.35rem;
+}
+
+.ats-score-ring.mid { --ring-color: #d97706; }
+.ats-score-ring.good { --ring-color: #16a34a; }
+.ats-score-ring.low { --ring-color: #dc2626; }
+
+.ats-verdict {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ats-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 7px;
+}
+
+.ats-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.ats-checklist .check-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ats-checklist li.pass .check-icon {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.ats-checklist li.fail {
+  color: var(--muted);
+}
+
+.ats-checklist li.fail .check-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
