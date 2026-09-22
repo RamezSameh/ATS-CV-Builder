@@ -14,7 +14,7 @@ A free, privacy-friendly **ATS-compatible CV builder** that runs entirely in the
 
 ## 🚀 Live Demo
 
-**https://ramesameh.github.io/ATS-CV-Builder/**
+**https://ramezsameh.github.io/ATS-CV-Builder/**
 
 Just open the link and start building.
 
