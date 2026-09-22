@@ -1293,6 +1293,14 @@ function setImportStatus(key) {
   }
 }
 
+function setImportStatusWithDetail(key, detail) {
+  setImportStatus(key);
+
+  if (pdfImportStatus && detail) {
+    pdfImportStatus.textContent += " (" + detail + ")";
+  }
+}
+
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
@@ -2158,7 +2166,16 @@ async function refineWithAi() {
     });
 
     if (!response.ok) {
-      throw new Error("ai-http-" + response.status);
+      let detail = "HTTP " + response.status;
+
+      try {
+        const errBody = await response.json();
+        detail = (errBody && errBody.error && errBody.error.message) || errBody.message || detail;
+      } catch (parseError) {
+        // keep the HTTP status as the detail
+      }
+
+      throw new Error(detail);
     }
 
     const result = await response.json();
@@ -2172,7 +2189,10 @@ async function refineWithAi() {
     setImportStatus("aiStatusDone");
   } catch (error) {
     console.error("AI refine error:", error);
-    setImportStatus("aiStatusError");
+    const detail = error && error.message === "Failed to fetch"
+      ? "network/CORS blocked"
+      : (error && error.message) || "";
+    setImportStatusWithDetail("aiStatusError", detail);
   } finally {
     aiRefineBtn.disabled = false;
   }
