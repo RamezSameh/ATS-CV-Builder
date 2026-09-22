@@ -2229,6 +2229,12 @@ function aiModelsUrl(endpoint) {
   return endpoint.replace(/\/chat\/completions\/?$/i, "/models");
 }
 
+// The /models endpoint returns ids like "models/gemini-2.5-flash", but chat
+// completions expects the bare name ("gemini-2.5-flash"). Normalize both.
+function normalizeModelName(model) {
+  return (model || "").trim().replace(/^models\//i, "");
+}
+
 async function testAiConnection() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
   const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "";
@@ -2258,7 +2264,9 @@ async function testAiConnection() {
     }
 
     const data = JSON.parse(raw);
-    const names = ((data && data.data) || []).map((m) => m.id).filter(Boolean);
+    const names = ((data && data.data) || [])
+      .map((m) => normalizeModelName(m.id))
+      .filter(Boolean);
     setImportStatusWithDetail("aiStatusTestOk", names.slice(0, 12).join(", ") || "—");
   } catch (error) {
     console.error("AI test error:", error);
@@ -2298,7 +2306,7 @@ async function refineWithAi() {
         Authorization: "Bearer " + apiKey
       },
       body: JSON.stringify({
-        model: model,
+        model: normalizeModelName(model),
         temperature: 0.1,
         messages: [
           { role: "system", content: AI_EXTRACT_SYSTEM_PROMPT },
