@@ -2077,7 +2077,7 @@ const aiProviderSelect = document.getElementById("aiProviderSelect");
 const AI_PRESETS = {
   gemini: {
     endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    model: "gemini-flash-latest"
+    model: "gemini-3-flash-preview"
   },
   openai: {
     endpoint: "https://api.openai.com/v1/chat/completions",
@@ -2088,8 +2088,9 @@ const AI_PRESETS = {
 // Models Google retired for newly created API keys (they answer 404).
 // Migrate saved settings to working equivalents automatically.
 const AI_RETIRED_MODEL_FALLBACK = {
-  "gemini-2.5-flash": "gemini-flash-latest",
-  "gemini-2.5-flash-lite": "gemini-flash-lite-latest"
+  "gemini-2.5-flash": "gemini-3-flash-preview",
+  "gemini-2.5-flash-lite": "gemini-flash-lite-latest",
+  "gemini-flash-latest": "gemini-3-flash-preview"
 };
 
 function detectAiProvider(endpoint) {
@@ -2286,7 +2287,7 @@ async function testAiConnection() {
     // Probe a minimal chat completion: isolates whether /chat/completions
     // itself works for this key, independent of the PDF/system prompt shape.
     const probeModel = normalizeModelName(aiModelInput ? aiModelInput.value : "");
-    const chatRes = await fetch(endpoint, {
+    const chatRes = await fetchWithRetry(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2297,7 +2298,7 @@ async function testAiConnection() {
         max_tokens: 5,
         messages: [{ role: "user", content: "ping" }]
       })
-    });
+    }, { retries: 2, baseDelayMs: 800 });
     const chatRaw = await chatRes.text();
 
     if (!chatRes.ok) {
@@ -2319,6 +2320,28 @@ async function testAiConnection() {
 
 function normalizeEndpoint(endpoint) {
   return (endpoint || "").trim().replace(/\/+$/, "");
+}
+
+// Retries transient failures (503 overloaded, 429 rate-limited) with
+// exponential backoff. Network/CORS errors are thrown immediately.
+async function fetchWithRetry(url, options, { retries = 3, baseDelayMs = 1000 } = {}) {
+  let lastResponse = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, options);
+
+    if (response.ok || (response.status !== 503 && response.status !== 429)) {
+      return response;
+    }
+
+    lastResponse = response;
+
+    if (attempt < retries) {
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * Math.pow(2, attempt)));
+    }
+  }
+
+  return lastResponse;
 }
 
 async function refineWithAi() {
@@ -2343,7 +2366,7 @@ async function refineWithAi() {
   let response = null;
 
   try {
-    response = await fetch(endpoint, {
+    response = await fetchWithRetry(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
