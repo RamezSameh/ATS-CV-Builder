@@ -121,6 +121,10 @@ const i18n = {
       aiRefineHint: "أدخل مفتاح API خاص بك لتنقية البيانات المستخرجة وتصحيحها قبل التعبئة. يُحفظ المفتاح في متصفحك فقط ولا يُرسل إلا لمزود الخدمة الذي تختاره.",
       aiApiKeyLabel: "مفتاح API",
       aiApiKeyPlaceholder: "الصق مفتاح الـ API هنا",
+      aiProviderLabel: "مزود الخدمة",
+      aiProviderGemini: "Google Gemini (مجاني)",
+      aiProviderOpenai: "OpenAI (مدفوع)",
+      aiProviderCustom: "مخصص",
       aiEndpointLabel: "رابط الـ API",
       aiModelLabel: "اسم الموديل",
       aiRefineBtn: "تحسين بالذكاء الاصطناعي",
@@ -303,6 +307,10 @@ const i18n = {
       aiRefineHint: "Enter your own API key to clean and correct the extracted data before filling. The key is stored in your browser only and sent solely to the provider you choose.",
       aiApiKeyLabel: "API key",
       aiApiKeyPlaceholder: "Paste your API key here",
+      aiProviderLabel: "Provider",
+      aiProviderGemini: "Google Gemini (free)",
+      aiProviderOpenai: "OpenAI (paid)",
+      aiProviderCustom: "Custom",
       aiEndpointLabel: "API endpoint",
       aiModelLabel: "Model name",
       aiRefineBtn: "Refine with AI",
@@ -2064,6 +2072,37 @@ const aiEndpointInput = document.getElementById("aiEndpointInput");
 const aiModelInput = document.getElementById("aiModelInput");
 const aiRefineBtn = document.getElementById("aiRefineBtn");
 const aiTestBtn = document.getElementById("aiTestBtn");
+const aiProviderSelect = document.getElementById("aiProviderSelect");
+
+const AI_PRESETS = {
+  gemini: {
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    model: "gemini-2.5-flash"
+  },
+  openai: {
+    endpoint: "https://api.openai.com/v1/chat/completions",
+    model: "gpt-4o-mini"
+  }
+};
+
+function detectAiProvider(endpoint) {
+  const ep = (endpoint || "").trim();
+  if (ep === AI_PRESETS.gemini.endpoint) return "gemini";
+  if (ep === AI_PRESETS.openai.endpoint) return "openai";
+  return "custom";
+}
+
+function applyAiPreset(name) {
+  const preset = AI_PRESETS[name];
+
+  if (preset) {
+    if (aiEndpointInput) aiEndpointInput.value = preset.endpoint;
+    if (aiModelInput) aiModelInput.value = preset.model;
+  }
+
+  if (aiProviderSelect) aiProviderSelect.value = preset ? name : "custom";
+  saveAiSettings();
+}
 
 const AI_EXTRACT_SYSTEM_PROMPT = [
   "You are a CV data extraction assistant.",
@@ -2078,10 +2117,21 @@ const AI_EXTRACT_SYSTEM_PROMPT = [
 function loadAiSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(AI_SETTINGS_KEY) || "{}");
+    const hasSaved = Boolean(saved.apiKey || saved.endpoint || saved.model || saved.provider);
 
     if (saved.apiKey && aiApiKeyInput) aiApiKeyInput.value = saved.apiKey;
     if (saved.endpoint && aiEndpointInput) aiEndpointInput.value = saved.endpoint;
     if (saved.model && aiModelInput) aiModelInput.value = saved.model;
+
+    if (!hasSaved) {
+      // Fresh start: default to the free Gemini preset.
+      applyAiPreset("gemini");
+      return;
+    }
+
+    if (aiProviderSelect) {
+      aiProviderSelect.value = saved.provider || detectAiProvider(aiEndpointInput && aiEndpointInput.value);
+    }
   } catch (error) {
     console.warn("Could not load AI settings:", error);
   }
@@ -2092,6 +2142,7 @@ function saveAiSettings() {
     localStorage.setItem(
       AI_SETTINGS_KEY,
       JSON.stringify({
+        provider: aiProviderSelect ? aiProviderSelect.value : "custom",
         apiKey: aiApiKeyInput ? aiApiKeyInput.value.trim() : "",
         endpoint: aiEndpointInput ? aiEndpointInput.value.trim() : "",
         model: aiModelInput ? aiModelInput.value.trim() : ""
@@ -2287,6 +2338,26 @@ if (aiRefineBtn) {
 
 if (aiTestBtn) {
   aiTestBtn.addEventListener("click", testAiConnection);
+}
+
+if (aiProviderSelect) {
+  aiProviderSelect.addEventListener("change", () => applyAiPreset(aiProviderSelect.value));
+}
+
+// Manual edits to endpoint/model switch the provider to "custom".
+[aiEndpointInput, aiModelInput].forEach((input) => {
+  if (input) {
+    input.addEventListener("input", () => {
+      if (aiProviderSelect && detectAiProvider(aiEndpointInput.value) !== aiProviderSelect.value) {
+        aiProviderSelect.value = "custom";
+      }
+      saveAiSettings();
+    });
+  }
+});
+
+if (aiApiKeyInput) {
+  aiApiKeyInput.addEventListener("input", saveAiSettings);
 }
 
 downloadWordBtn.addEventListener("click", () => {

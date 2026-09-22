@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <div class="page-shell">
@@ -125,6 +125,14 @@
             <summary data-i18n="aiRefineTitle">تحسين الاستخراج بالذكاء الاصطناعي (اختياري)</summary>
             <p class="section-hint" data-i18n="aiRefineHint">أدخل مفتاح API خاص بك لتنقية البيانات المستخرجة وتصحيحها قبل التعبئة. يُحفظ المفتاح في متصفحك فقط ولا يُرسل إلا لمزود الخدمة الذي تختاره.</p>
             <label>
+              <span data-i18n="aiProviderLabel">مزود الخدمة</span>
+              <select id="aiProviderSelect">
+                <option value="gemini" data-i18n="aiProviderGemini">Google Gemini (مجاني)</option>
+                <option value="openai" data-i18n="aiProviderOpenai">OpenAI (مدفوع)</option>
+                <option value="custom" data-i18n="aiProviderCustom">مخصص</option>
+              </select>
+            </label>
+            <label>
               <span data-i18n="aiApiKeyLabel">مفتاح API</span>
               <input type="password" id="aiApiKeyInput" autocomplete="off" data-i18n-placeholder="aiApiKeyPlaceholder">
             </label>
@@ -219,6 +227,6 @@
     </main>
   </div>
 
-  <script src="script.js?v=4"></script>
+  <script src="script.js?v=5"></script>
 </body>
 </html>
