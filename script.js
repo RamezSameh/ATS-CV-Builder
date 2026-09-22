@@ -129,6 +129,9 @@ const i18n = {
       aiStatusWorking: "جاري تحسين البيانات بالذكاء الاصطناعي...",
       aiStatusDone: "تم تحسين البيانات بنجاح. راجع الحقول ثم اطبع.",
       aiStatusError: "فشل الاتصال بخدمة الذكاء الاصطناعي. تحقق من المفتاح والرابط واسم الموديل.",
+      aiTestBtn: "اختبار الاتصال",
+      aiStatusTesting: "جاري اختبار الاتصال...",
+      aiStatusTestOk: "الاتصال ناجح. الموديلات المتاحة:",
       printBtn: "طباعة / حفظ PDF",
       downloadWordBtn: "تحميل Word",
       resetBtn: "إعادة ضبط",
@@ -308,6 +311,9 @@ const i18n = {
       aiStatusWorking: "Refining data with AI...",
       aiStatusDone: "Data refined successfully. Review the fields, then print.",
       aiStatusError: "Failed to reach the AI service. Check the key, endpoint, and model name.",
+      aiTestBtn: "Test connection",
+      aiStatusTesting: "Testing connection...",
+      aiStatusTestOk: "Connection OK. Available models:",
       printBtn: "Print / Save PDF",
       downloadWordBtn: "Download Word",
       resetBtn: "Reset",
@@ -2057,6 +2063,7 @@ const aiApiKeyInput = document.getElementById("aiApiKeyInput");
 const aiEndpointInput = document.getElementById("aiEndpointInput");
 const aiModelInput = document.getElementById("aiModelInput");
 const aiRefineBtn = document.getElementById("aiRefineBtn");
+const aiTestBtn = document.getElementById("aiTestBtn");
 
 const AI_EXTRACT_SYSTEM_PROMPT = [
   "You are a CV data extraction assistant.",
@@ -2148,6 +2155,71 @@ function normalizeAiCv(ai) {
   };
 }
 
+async function readApiErrorDetail(response) {
+  const fallback = "HTTP " + response.status;
+  let raw = "";
+
+  try {
+    raw = await response.text();
+  } catch (readError) {
+    return fallback;
+  }
+
+  try {
+    const errBody = JSON.parse(raw);
+    return (errBody && errBody.error && errBody.error.message) || errBody.message || fallback;
+  } catch (parseError) {
+    const snippet = raw.trim().slice(0, 160);
+    return snippet || fallback;
+  }
+}
+
+function aiModelsUrl(endpoint) {
+  return endpoint.replace(/\/chat\/completions\/?$/i, "/models");
+}
+
+async function testAiConnection() {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "";
+
+  if (!apiKey) {
+    setImportStatus("aiStatusNeedKey");
+    return;
+  }
+
+  if (!endpoint) {
+    setImportStatusWithDetail("aiStatusError", "endpoint is empty");
+    return;
+  }
+
+  saveAiSettings();
+  setImportStatus("aiStatusTesting");
+  aiTestBtn.disabled = true;
+
+  try {
+    const res = await fetch(aiModelsUrl(endpoint), {
+      headers: { Authorization: "Bearer " + apiKey }
+    });
+    const raw = await res.text();
+
+    if (!res.ok) {
+      throw new Error(await readApiErrorDetail({ status: res.status, text: async () => raw }));
+    }
+
+    const data = JSON.parse(raw);
+    const names = ((data && data.data) || []).map((m) => m.id).filter(Boolean);
+    setImportStatusWithDetail("aiStatusTestOk", names.slice(0, 12).join(", ") || "—");
+  } catch (error) {
+    console.error("AI test error:", error);
+    const detail = error && error.message === "Failed to fetch"
+      ? "network/CORS blocked"
+      : (error && error.message) || "";
+    setImportStatusWithDetail("aiStatusError", detail);
+  } finally {
+    aiTestBtn.disabled = false;
+  }
+}
+
 async function refineWithAi() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
   const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "https://api.openai.com/v1/chat/completions";
@@ -2185,16 +2257,7 @@ async function refineWithAi() {
     });
 
     if (!response.ok) {
-      let detail = "HTTP " + response.status;
-
-      try {
-        const errBody = await response.json();
-        detail = (errBody && errBody.error && errBody.error.message) || errBody.message || detail;
-      } catch (parseError) {
-        // keep the HTTP status as the detail
-      }
-
-      throw new Error(detail);
+      throw new Error(await readApiErrorDetail(response));
     }
 
     const result = await response.json();
@@ -2220,6 +2283,10 @@ async function refineWithAi() {
 if (aiRefineBtn) {
   aiRefineBtn.addEventListener("click", refineWithAi);
   loadAiSettings();
+}
+
+if (aiTestBtn) {
+  aiTestBtn.addEventListener("click", testAiConnection);
 }
 
 downloadWordBtn.addEventListener("click", () => {
