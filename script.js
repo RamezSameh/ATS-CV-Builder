@@ -2267,7 +2267,30 @@ async function testAiConnection() {
     const names = ((data && data.data) || [])
       .map((m) => normalizeModelName(m.id))
       .filter(Boolean);
-    setImportStatusWithDetail("aiStatusTestOk", names.slice(0, 12).join(", ") || "—");
+
+    // Probe a minimal chat completion: isolates whether /chat/completions
+    // itself works for this key, independent of the PDF/system prompt shape.
+    const probeModel = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+    const chatRes = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey
+      },
+      body: JSON.stringify({
+        model: probeModel,
+        max_tokens: 5,
+        messages: [{ role: "user", content: "ping" }]
+      })
+    });
+    const chatRaw = await chatRes.text();
+
+    if (!chatRes.ok) {
+      const chatDetail = await readApiErrorDetail({ status: chatRes.status, text: async () => chatRaw });
+      throw new Error(`chat probe: ${chatDetail} [model="${probeModel}"]`);
+    }
+
+    setImportStatusWithDetail("aiStatusTestOk", "chat OK · " + (names.slice(0, 12).join(", ") || "—"));
   } catch (error) {
     console.error("AI test error:", error);
     const detail = error && error.message === "Failed to fetch"
@@ -2302,8 +2325,10 @@ async function refineWithAi() {
   setImportStatus("aiStatusWorking");
   aiRefineBtn.disabled = true;
 
+  let response = null;
+
   try {
-    const response = await fetch(endpoint, {
+    response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2338,7 +2363,7 @@ async function refineWithAi() {
       ? "network/CORS blocked"
       : (error && error.message) || "";
     // Diagnostic context (no secrets): shows exactly what was sent.
-    detail += ` [model="${model}" endpoint="${endpoint}"]`;
+    detail += ` [model="${model}" endpoint="${endpoint}" finalUrl="${response ? response.url : ""}"]`;
     setImportStatusWithDetail("aiStatusError", detail);
   } finally {
     aiRefineBtn.disabled = false;
