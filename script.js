@@ -2237,7 +2237,7 @@ function normalizeModelName(model) {
 
 async function testAiConnection() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "";
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
 
   if (!apiKey) {
     setImportStatus("aiStatusNeedKey");
@@ -2279,10 +2279,14 @@ async function testAiConnection() {
   }
 }
 
+function normalizeEndpoint(endpoint) {
+  return (endpoint || "").trim().replace(/\/+$/, "");
+}
+
 async function refineWithAi() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "https://api.openai.com/v1/chat/completions";
-  const model = aiModelInput ? aiModelInput.value.trim() : "gpt-4o-mini";
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "https://api.openai.com/v1/chat/completions");
+  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "gpt-4o-mini");
 
   if (!apiKey) {
     setImportStatus("aiStatusNeedKey");
@@ -2306,7 +2310,7 @@ async function refineWithAi() {
         Authorization: "Bearer " + apiKey
       },
       body: JSON.stringify({
-        model: normalizeModelName(model),
+        model: model,
         temperature: 0.1,
         messages: [
           { role: "system", content: AI_EXTRACT_SYSTEM_PROMPT },
@@ -2330,9 +2334,11 @@ async function refineWithAi() {
     setImportStatus("aiStatusDone");
   } catch (error) {
     console.error("AI refine error:", error);
-    const detail = error && error.message === "Failed to fetch"
+    let detail = error && error.message === "Failed to fetch"
       ? "network/CORS blocked"
       : (error && error.message) || "";
+    // Diagnostic context (no secrets): shows exactly what was sent.
+    detail += ` [model="${model}" endpoint="${endpoint}"]`;
     setImportStatusWithDetail("aiStatusError", detail);
   } finally {
     aiRefineBtn.disabled = false;
