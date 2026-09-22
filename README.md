@@ -1,121 +1,62 @@
-# 🌐 Personal CV Website
+# ATS CV Builder
 
-> A modern and responsive **CV / Portfolio Website** built to showcase my skills, experience, and projects as a Full Stack .NET Developer.
-
----
-
-## 📖 About The Project
-
-This project is a personal **CV Website** that represents my professional profile in a modern and interactive way.
-
-Instead of using a traditional PDF resume, this website provides:
-- A clean and professional online presence  
-- Easy navigation between sections  
-- A better way to showcase projects and skills  
-
----
+A free, privacy-friendly **ATS-compatible CV builder** that runs entirely in the browser. Fill in your details, watch a clean live preview update as you type, then print to PDF or export to Word — no account, no backend, no data ever leaves your device.
 
 ## ✨ Features
 
-- Responsive design (works on all devices 📱💻)  
-- Modern and clean UI  
-- Smooth navigation between sections  
-- Sections for:
-  - About Me  
-  - Skills  
-  - Projects  
-  - Contact  
-- Fast and lightweight performance  
-
----
-
-## 🛠️ Technologies Used
-
-- HTML5  
-- CSS3  
-- JavaScript  
-
----
-
-## 📁 Project Structure
-
-
-CV-Website/
-│
-├── index.html
-├── css/
-├── js/
-
-
----
+- **Live preview** — see your CV update in real time as you type
+- **ATS-friendly layout** — simple single-column structure, standard section headings, no graphics/tables that confuse parsers
+- **PDF import** — upload an existing CV (PDF) and auto-fill the form via pdf.js
+- **Export** — print to PDF or download as Word (.doc)
+- **Bilingual UI** — full Arabic (RTL) and English interface
+- **Dynamic sections** — add/remove experience, education, projects, and languages entries
+- **100% client-side** — your data never leaves the browser
 
 ## 🚀 Live Demo
 
-🚧 Not deployed yet  
+**https://ramesameh.github.io/ATS-CV-Builder/**
 
-> You can deploy it using GitHub Pages or Netlify
+Just open the link and start building.
 
----
+## 🛠️ Technologies
 
-## ⚙️ Getting Started
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- [pdf.js](https://mozilla.github.io/pdf.js/) (PDF import, loaded from CDN)
 
-### 1. Clone the repository
+## 📁 Project Structure
 
-```bash
-git clone https://github.com/RamezSameh/CV-Website.git
-cd CV-Website
+```
+ATS-CV-Builder/
+├── index.html      # App markup (form + preview)
+├── styles.css      # Styling, print layout
+└── script.js       # Form logic, i18n, PDF import, export
 ```
 
-### 2. Run the project
+## ⚙️ Run Locally
 
-Simply open:
+No build step needed:
 
-- index.html
+```bash
+git clone https://github.com/RamezSameh/ATS-CV-Builder.git
+cd ATS-CV-Builder
+```
 
-in your browser
+Then open `index.html` in your browser (or serve the folder with any static server).
 
-### 🎯 Usage
+## 🖨️ Exporting
 
-This website can be used as:
+- **PDF**: click Print, then choose "Save as PDF" in the print dialog
+- **Word**: click the Word download button for a `.doc` file
 
-Personal portfolio
-Online CV
-Resume alternative
-Showcase for projects
-📸 Screenshots
+## 👨‍💻 Author
 
-Add screenshots here (very important for recruiters)
+**Ramez Sameh** — Full Stack .NET Developer
 
-Examples:
+- GitHub: https://github.com/RamezSameh
+- LinkedIn: https://linkedin.com/in/ramez-sameh
 
-Home Section
-About Section
-Skills Section
-Projects Section
-🚀 Future Improvements
-Add dark mode 🌙
-Add animations using libraries
-Connect contact form with backend
-Add project filtering
-Deploy online
-🤝 Contributing
+## 📜 License
 
-Contributions are welcome!
-
-Fork the repository
-Create a branch
-Commit changes
-Open Pull Request
-👨‍💻 Author
-
-Ramez Sameh
-
-GitHub: https://github.com/RamezSameh
-LinkedIn: linkedin.com/in/ramez-sameh
-⭐ Support
-
-If you like this project, please give it a ⭐ on GitHub!
-
-📜 License
-
-This project is licensed under the MIT License.
+MIT
