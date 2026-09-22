@@ -254,6 +254,33 @@ textarea:focus,
   color: var(--muted);
 }
 
+.ai-refine-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: 10px;
+}
+
+.ai-refine-box summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.ai-refine-box label {
+  display: block;
+  margin-top: 10px;
+}
+
+.ai-refine-box input {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.ai-refine-box .ghost-btn {
+  margin-top: 12px;
+}
+
 .actions {
   display: flex;
   gap: 10px;

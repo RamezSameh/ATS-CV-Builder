@@ -19,6 +19,7 @@ const atsScoreValue = document.getElementById("atsScoreValue");
 const atsScoreVerdict = document.getElementById("atsScoreVerdict");
 const atsChecklist = document.getElementById("atsChecklist");
 let importStatusKey = "importPdfStatusReady";
+let lastPdfRawText = "";
 const pdfJsCandidates = [
   {
     lib: "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js",
@@ -98,6 +99,18 @@ const i18n = {
       importPdfStatusInvalidType: "الملف المختار ليس PDF صالحًا.",
       importPdfStatusNoText: "لم يتم العثور على نص قابل للاستخراج داخل هذا الملف.",
       importPdfStatusUnsupported: "مكتبة PDF غير متاحة. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.",
+      aiRefineTitle: "تحسين الاستخراج بالذكاء الاصطناعي (اختياري)",
+      aiRefineHint: "أدخل مفتاح API خاص بك لتنقية البيانات المستخرجة وتصحيحها قبل التعبئة. يُحفظ المفتاح في متصفحك فقط ولا يُرسل إلا لمزود الخدمة الذي تختاره.",
+      aiApiKeyLabel: "مفتاح API",
+      aiApiKeyPlaceholder: "الصق مفتاح الـ API هنا",
+      aiEndpointLabel: "رابط الـ API",
+      aiModelLabel: "اسم الموديل",
+      aiRefineBtn: "تحسين بالذكاء الاصطناعي",
+      aiStatusNeedKey: "أدخل مفتاح API أولًا.",
+      aiStatusNoText: "استورد ملف PDF أولًا حتى يتوفر النص الخام للتحسين.",
+      aiStatusWorking: "جاري تحسين البيانات بالذكاء الاصطناعي...",
+      aiStatusDone: "تم تحسين البيانات بنجاح. راجع الحقول ثم اطبع.",
+      aiStatusError: "فشل الاتصال بخدمة الذكاء الاصطناعي. تحقق من المفتاح والرابط واسم الموديل.",
       printBtn: "طباعة / حفظ PDF",
       downloadWordBtn: "تحميل Word",
       resetBtn: "إعادة ضبط",
@@ -265,6 +278,18 @@ const i18n = {
       importPdfStatusInvalidType: "The selected file is not a valid PDF.",
       importPdfStatusNoText: "No extractable text was found in this file.",
       importPdfStatusUnsupported: "PDF library is unavailable. Check your internet connection and try again.",
+      aiRefineTitle: "AI-powered extraction refinement (optional)",
+      aiRefineHint: "Enter your own API key to clean and correct the extracted data before filling. The key is stored in your browser only and sent solely to the provider you choose.",
+      aiApiKeyLabel: "API key",
+      aiApiKeyPlaceholder: "Paste your API key here",
+      aiEndpointLabel: "API endpoint",
+      aiModelLabel: "Model name",
+      aiRefineBtn: "Refine with AI",
+      aiStatusNeedKey: "Enter an API key first.",
+      aiStatusNoText: "Import a PDF first so raw text is available for refinement.",
+      aiStatusWorking: "Refining data with AI...",
+      aiStatusDone: "Data refined successfully. Review the fields, then print.",
+      aiStatusError: "Failed to reach the AI service. Check the key, endpoint, and model name.",
       printBtn: "Print / Save PDF",
       downloadWordBtn: "Download Word",
       resetBtn: "Reset",
@@ -681,7 +706,7 @@ function fillSampleData() {
 }
 
 function currentLocale() {
-  return i18n[languageSelect.value] || i18n.ar;
+  return i18n[languageSelect.value] || i18n.en;
 }
 
 function linesFromValue(value) {
@@ -1963,6 +1988,7 @@ importPdfBtn.addEventListener("click", async () => {
 
   try {
     const text = await extractTextFromPdfFile(file);
+    lastPdfRawText = text;
 
     if (!text.trim()) {
       setImportStatus("importPdfStatusNoText");
@@ -1997,6 +2023,165 @@ importPdfBtn.addEventListener("click", async () => {
 printBtn.addEventListener("click", () => {
   window.print();
 });
+
+// --- AI-powered PDF extraction refinement (bring your own API key) ---
+const AI_SETTINGS_KEY = "atsCvAiSettings.v1";
+const aiApiKeyInput = document.getElementById("aiApiKeyInput");
+const aiEndpointInput = document.getElementById("aiEndpointInput");
+const aiModelInput = document.getElementById("aiModelInput");
+const aiRefineBtn = document.getElementById("aiRefineBtn");
+
+const AI_EXTRACT_SYSTEM_PROMPT = [
+  "You are a CV data extraction assistant.",
+  "Extract structured CV data from the raw text provided by the user.",
+  "Fix obvious OCR typos and broken line breaks, but never invent facts that are not present in the text.",
+  "Return ONLY a valid JSON object with exactly these keys:",
+  '{ "fullName": "", "jobTitle": "", "summary": "", "email": "", "phone": "", "address": "", "website": "", "hardSkills": [], "softSkills": [], "experience": [{ "role": "", "company": "", "location": "", "start": "", "end": "", "achievements": [] }], "education": [{ "degree": "", "institution": "", "location": "", "start": "", "end": "", "details": "" }], "projects": [{ "name": "", "description": "", "github": "" }], "languages": [{ "name": "", "level": "" }] }',
+  "Use empty strings or empty arrays for anything not found.",
+  "No markdown, no code fences, no explanations."
+].join(" ");
+
+function loadAiSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AI_SETTINGS_KEY) || "{}");
+
+    if (saved.apiKey && aiApiKeyInput) aiApiKeyInput.value = saved.apiKey;
+    if (saved.endpoint && aiEndpointInput) aiEndpointInput.value = saved.endpoint;
+    if (saved.model && aiModelInput) aiModelInput.value = saved.model;
+  } catch (error) {
+    console.warn("Could not load AI settings:", error);
+  }
+}
+
+function saveAiSettings() {
+  try {
+    localStorage.setItem(
+      AI_SETTINGS_KEY,
+      JSON.stringify({
+        apiKey: aiApiKeyInput ? aiApiKeyInput.value.trim() : "",
+        endpoint: aiEndpointInput ? aiEndpointInput.value.trim() : "",
+        model: aiModelInput ? aiModelInput.value.trim() : ""
+      })
+    );
+  } catch (error) {
+    console.warn("Could not save AI settings:", error);
+  }
+}
+
+function aiToLines(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return linesFromValue(value);
+  }
+
+  return [];
+}
+
+function normalizeAiCv(ai) {
+  const safe = ai && typeof ai === "object" ? ai : {};
+
+  return {
+    fullName: safe.fullName || "",
+    jobTitle: safe.jobTitle || "",
+    summary: safe.summary || "",
+    email: safe.email || "",
+    phone: safe.phone || "",
+    address: safe.address || "",
+    website: safe.website || safe.linkedin || "",
+    hardSkills: aiToLines(safe.hardSkills || safe.skills),
+    softSkills: aiToLines(safe.softSkills),
+    experience: (Array.isArray(safe.experience) ? safe.experience : []).map((entry) => ({
+      role: entry.role || entry.title || "",
+      company: entry.company || "",
+      location: entry.location || "",
+      start: entry.start || entry.startDate || "",
+      end: entry.end || entry.endDate || "",
+      achievements: aiToLines(entry.achievements || entry.details || entry.bullets).join("\n")
+    })),
+    education: (Array.isArray(safe.education) ? safe.education : []).map((entry) => ({
+      degree: entry.degree || "",
+      institution: entry.institution || entry.school || entry.university || "",
+      location: entry.location || "",
+      start: entry.start || entry.startDate || "",
+      end: entry.end || entry.endDate || "",
+      details: entry.details || ""
+    })),
+    projects: (Array.isArray(safe.projects) ? safe.projects : []).map((entry) => ({
+      name: entry.name || "",
+      description: entry.description || "",
+      github: entry.github || entry.link || entry.url || ""
+    })),
+    languages: (Array.isArray(safe.languages) ? safe.languages : []).map((entry) => ({
+      name: entry.name || "",
+      level: entry.level || ""
+    }))
+  };
+}
+
+async function refineWithAi() {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const endpoint = aiEndpointInput ? aiEndpointInput.value.trim() : "https://api.openai.com/v1/chat/completions";
+  const model = aiModelInput ? aiModelInput.value.trim() : "gpt-4o-mini";
+
+  if (!apiKey) {
+    setImportStatus("aiStatusNeedKey");
+    return;
+  }
+
+  if (!lastPdfRawText.trim()) {
+    setImportStatus("aiStatusNoText");
+    return;
+  }
+
+  saveAiSettings();
+  setImportStatus("aiStatusWorking");
+  aiRefineBtn.disabled = true;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey
+      },
+      body: JSON.stringify({
+        model: model,
+        temperature: 0.1,
+        messages: [
+          { role: "system", content: AI_EXTRACT_SYSTEM_PROMPT },
+          { role: "user", content: lastPdfRawText.slice(0, 12000) }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("ai-http-" + response.status);
+    }
+
+    const result = await response.json();
+    let content = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
+
+    content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+    const parsed = JSON.parse(content);
+
+    fillFormFromParsedCv(normalizeAiCv(parsed));
+    setImportStatus("aiStatusDone");
+  } catch (error) {
+    console.error("AI refine error:", error);
+    setImportStatus("aiStatusError");
+  } finally {
+    aiRefineBtn.disabled = false;
+  }
+}
+
+if (aiRefineBtn) {
+  aiRefineBtn.addEventListener("click", refineWithAi);
+  loadAiSettings();
+}
 
 downloadWordBtn.addEventListener("click", () => {
   exportToWord();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,7 @@
             <label for="languageSelect" data-i18n="languageLabel">Language</label>
             <select id="languageSelect" aria-label="Language">
               <option value="ar">العربية</option>
-              <option value="en">English</option>
+              <option value="en" selected>English</option>
             </select>
           </div>
         </div>
@@ -121,6 +121,23 @@
           <input id="pdfUploadInput" type="file" accept=".pdf,application/pdf">
           <button type="button" id="importPdfBtn" class="ghost-btn" data-i18n="importPdfBtn">استيراد من PDF</button>
           <p id="pdfImportStatus" class="import-status" aria-live="polite" data-i18n="importPdfStatusReady">جاهز لاستيراد ملف PDF.</p>
+          <details class="ai-refine-box">
+            <summary data-i18n="aiRefineTitle">تحسين الاستخراج بالذكاء الاصطناعي (اختياري)</summary>
+            <p class="section-hint" data-i18n="aiRefineHint">أدخل مفتاح API خاص بك لتنقية البيانات المستخرجة وتصحيحها قبل التعبئة. يُحفظ المفتاح في متصفحك فقط ولا يُرسل إلا لمزود الخدمة الذي تختاره.</p>
+            <label>
+              <span data-i18n="aiApiKeyLabel">مفتاح API</span>
+              <input type="password" id="aiApiKeyInput" autocomplete="off" data-i18n-placeholder="aiApiKeyPlaceholder">
+            </label>
+            <label>
+              <span data-i18n="aiEndpointLabel">رابط الـ API</span>
+              <input type="url" id="aiEndpointInput" value="https://api.openai.com/v1/chat/completions" autocomplete="off">
+            </label>
+            <label>
+              <span data-i18n="aiModelLabel">اسم الموديل</span>
+              <input type="text" id="aiModelInput" value="gpt-4o-mini" autocomplete="off">
+            </label>
+            <button type="button" id="aiRefineBtn" class="ghost-btn" data-i18n="aiRefineBtn">تحسين بالذكاء الاصطناعي</button>
+          </details>
         </section>
 
         <section class="ats-score-card">
