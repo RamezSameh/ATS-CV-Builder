@@ -2077,12 +2077,19 @@ const aiProviderSelect = document.getElementById("aiProviderSelect");
 const AI_PRESETS = {
   gemini: {
     endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    model: "gemini-2.5-flash"
+    model: "gemini-flash-latest"
   },
   openai: {
     endpoint: "https://api.openai.com/v1/chat/completions",
     model: "gpt-4o-mini"
   }
+};
+
+// Models Google retired for newly created API keys (they answer 404).
+// Migrate saved settings to working equivalents automatically.
+const AI_RETIRED_MODEL_FALLBACK = {
+  "gemini-2.5-flash": "gemini-flash-latest",
+  "gemini-2.5-flash-lite": "gemini-flash-lite-latest"
 };
 
 function detectAiProvider(endpoint) {
@@ -2122,6 +2129,14 @@ function loadAiSettings() {
     if (saved.apiKey && aiApiKeyInput) aiApiKeyInput.value = saved.apiKey;
     if (saved.endpoint && aiEndpointInput) aiEndpointInput.value = saved.endpoint;
     if (saved.model && aiModelInput) aiModelInput.value = saved.model;
+
+    // Migrate retired models to working equivalents.
+    if (aiModelInput) {
+      const fallback = AI_RETIRED_MODEL_FALLBACK[aiModelInput.value.trim()];
+      if (fallback) {
+        aiModelInput.value = fallback;
+      }
+    }
 
     if (!hasSaved) {
       // Fresh start: default to the free Gemini preset.
