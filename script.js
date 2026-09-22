@@ -20,6 +20,24 @@ const atsScoreVerdict = document.getElementById("atsScoreVerdict");
 const atsChecklist = document.getElementById("atsChecklist");
 let importStatusKey = "importPdfStatusReady";
 let lastPdfRawText = "";
+const PDF_RAW_TEXT_KEY = "atsCvPdfRawText.v1";
+const PDF_RAW_TEXT_MAX = 20000;
+
+function persistPdfRawText(text) {
+  try {
+    localStorage.setItem(PDF_RAW_TEXT_KEY, (text || "").slice(0, PDF_RAW_TEXT_MAX));
+  } catch (error) {
+    console.warn("Could not persist PDF raw text:", error);
+  }
+}
+
+function restorePdfRawText() {
+  try {
+    lastPdfRawText = localStorage.getItem(PDF_RAW_TEXT_KEY) || "";
+  } catch (error) {
+    lastPdfRawText = "";
+  }
+}
 const pdfJsCandidates = [
   {
     lib: "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js",
@@ -1997,6 +2015,7 @@ importPdfBtn.addEventListener("click", async () => {
   try {
     const text = await extractTextFromPdfFile(file);
     lastPdfRawText = text;
+    persistPdfRawText(text);
 
     if (!text.trim()) {
       setImportStatus("importPdfStatusNoText");
@@ -2359,4 +2378,5 @@ async function exportToWord() {
 if (!restoreFormState()) {
   buildTemplateEntries();
 }
+restorePdfRawText();
 applyLanguage(languageSelect.value);
