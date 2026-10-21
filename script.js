@@ -175,6 +175,9 @@ const i18n = {
       aiProviderGemini: "Google Gemini (مجاني)",
       aiProviderOpenai: "OpenAI (مدفوع)",
       aiModelInUse: "الموديل المستخدم:",
+      aiKeySaved: "مفتاح محفوظ:",
+      aiKeyNone: "لا يوجد مفتاح محفوظ",
+      aiKeyChars: "حرف",
       aiRefineBtn: "تحسين بالذكاء الاصطناعي",
       aiStatusNeedKey: "أدخل مفتاح API أولًا.",
       aiStatusNoText: "استورد ملف PDF أولًا حتى يتوفر النص الخام للتحسين.",
@@ -416,6 +419,9 @@ const i18n = {
       aiProviderGemini: "Google Gemini (free)",
       aiProviderOpenai: "OpenAI (paid)",
       aiModelInUse: "Model in use:",
+      aiKeySaved: "Saved key:",
+      aiKeyNone: "No key saved",
+      aiKeyChars: "chars",
       aiRefineBtn: "Refine with AI",
       aiStatusNeedKey: "Enter an API key first.",
       aiStatusNoText: "Import a PDF first so raw text is available for refinement.",
@@ -2541,6 +2547,7 @@ printBtn.addEventListener("click", () => {
 const AI_SETTINGS_KEY = "atsCvAiSettings.v1";
 const aiApiKeyInput = document.getElementById("aiApiKeyInput");
 const aiModelDisplay = document.getElementById("aiModelDisplay");
+const aiKeyInfo = document.getElementById("aiKeyInfo");
 const aiRefineBtn = document.getElementById("aiRefineBtn");
 const aiImproveBtn = document.getElementById("aiImproveBtn");
 const aiTestBtn = document.getElementById("aiTestBtn");
@@ -2612,6 +2619,18 @@ function syncAiModelDisplay() {
   aiModelDisplay.textContent = getAiModel();
 }
 
+// Diagnostic only: shows the saved key's first 3 characters and its
+// length (never the key itself), so a truncated key or two keys pasted
+// back-to-back is visible at a glance.
+function syncAiKeyInfo() {
+  if (!aiKeyInfo) return;
+  const locale = currentLocale();
+  const key = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  aiKeyInfo.textContent = key
+    ? locale.strings.aiKeySaved + " " + key.slice(0, 3) + "… • " + key.length + " " + locale.strings.aiKeyChars
+    : locale.strings.aiKeyNone;
+}
+
 function applyAiPreset(name) {
   const presetName = AI_PRESETS[name] ? name : "gemini";
   if (aiProviderSelect) aiProviderSelect.value = presetName;
@@ -2664,6 +2683,8 @@ function loadAiSettings() {
     const hasSaved = Boolean(saved.apiKey || saved.model || saved.provider);
 
     if (saved.apiKey && aiApiKeyInput) aiApiKeyInput.value = saved.apiKey;
+
+    syncAiKeyInfo();
 
     if (!hasSaved) {
       // Fresh start: default to the free Gemini preset.
@@ -3537,9 +3558,10 @@ if (aiProviderSelect) {
 }
 
 // Typing/pasting a key saves it, matches the provider to the key format
-// (AIza → Gemini, sk- → OpenAI), and auto-detects working models.
+// (AIza/AQ. → Gemini, sk- → OpenAI), and auto-detects working models.
 function onAiKeyInput() {
   saveAiSettings();
+  syncAiKeyInfo();
   const key = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
   matchProviderToKey(key);
   scheduleAiAutoDetect();
