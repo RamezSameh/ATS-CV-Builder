@@ -3531,8 +3531,9 @@ if (aiShowKeyBtn) {
 if (aiRefineBtn) {
   aiRefineBtn.addEventListener("click", refineWithAi);
   loadAiSettings();
-  // The key field is visible by default now: sync the toggle label
-  // ("Hide") with the actual input type on load.
+  // Visible by default (his request): enforce from JS too, so a
+  // cached index.html can't keep the field masked.
+  if (aiApiKeyInput) aiApiKeyInput.type = "text";
   syncAiKeyButton();
 }
 
