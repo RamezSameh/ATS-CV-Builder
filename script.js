@@ -3323,153 +3323,129 @@ async function exportToWord() {
   const languages = collectLanguageEntries();
   const certifications = collectCertificationEntries();
 
+  // Word (unlike browsers) drops flexbox/grid, so this export mirrors the
+  // print design with tables, and escapes values so markup can't break.
+  const escWord = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const wordAlignStart = locale.dir === "rtl" ? "right" : "left";
+  const wordAlignEnd = locale.dir === "rtl" ? "left" : "right";
+  const wordListPad = locale.dir === "rtl" ? "0 18px 0 0" : "0 0 0 18px";
+  let wordSectionCount = 0;
+  const wordSection = (title, inner) => {
+    const cls = wordSectionCount++ === 0 ? "section" : "section bordered";
+    return `<div class="${cls}"><h2>${title}</h2>${inner}</div>`;
+  };
+  const wordCard = (left, right, sub, details, link) => {
+    const head = right
+      ? `<table class="head" cellpadding="0" cellspacing="0"><tr><td style="text-align:${wordAlignStart};"><p class="role">${left}</p></td><td style="text-align:${wordAlignEnd};"><p class="date">${right}</p></td></tr></table>`
+      : `<p class="role">${left}</p>`;
+    return `<table class="card" cellpadding="0" cellspacing="0"><tr><td class="card-cell">${head}${sub ? `<p class="sub">${sub}</p>` : ""}${details ? `<ul class="det">${details}</ul>` : ""}${link || ""}</td></tr></table>`;
+  };
+  const wordItems = (items) => items.map((item) => `<li>${escWord(item)}</li>`).join("");
+  const wordSkillBlock = (label, items) => `<h3 class="skill-sub">${label}</h3><ul class="skill-list">${wordItems(items)}</ul>`;
+  const wordSkillCol = (label, items) => `<td class="skill-col">${wordSkillBlock(label, items)}</td>`;
+
   // Create HTML content for Word
   const htmlContent = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <html dir="${locale.dir}" xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
       <meta charset="utf-8">
-      <title>${fullName} - CV</title>
+      <title>${escWord(fullName)} - CV</title>
       <style>
-        body { font-family: 'Arial', sans-serif; line-height: 1.4; color: #333; }
-        .header { border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
-        h1 { font-size: 24pt; margin: 0; color: #000; }
-        .job-title { font-size: 14pt; font-weight: bold; color: #444; margin-top: 5px; }
-        .contact { font-size: 10pt; color: #666; margin-top: 5px; }
-        .section-title { font-size: 14pt; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ccc; margin-top: 20px; margin-bottom: 10px; color: #000; }
-        .entry { margin-bottom: 15px; }
-        .entry-head { font-weight: bold; display: flex; justify-content: space-between; }
-        .entry-sub { color: #555; font-style: italic; margin-bottom: 5px; }
-        ul { margin-top: 5px; margin-bottom: 5px; }
-        li { margin-bottom: 3px; }
+        @page { size: A4; margin: 0.6in 0.7in; }
+        body { font-family: "IBM Plex Sans Arabic", "Source Sans 3", "Segoe UI", Arial, sans-serif; color: #121417; line-height: 1.45; font-size: 10pt; margin: 0; }
+        p { margin: 0; }
+        .header { border-bottom: 1px solid #b9c2cf; padding-bottom: 8pt; }
+        h1 { font-size: 17pt; line-height: 1.1; margin: 0; }
+        .job-title { font-size: 11pt; font-weight: 600; color: #222a34; margin-top: 4pt; }
+        .contact { font-size: 10pt; color: #4e5661; margin-top: 6pt; }
+        .section { padding-top: 18pt; }
+        .section.bordered { border-top: 1px solid #e3e8f0; margin-top: 8pt; }
+        .section h2 { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; color: #1c2733; margin: 0 0 5pt 0; }
+        table.card { width: 100%; margin-bottom: 8pt; }
+        .card-cell { border: 1px solid #d8dee7; background: #fbfcff; padding: 6pt 8pt; }
+        table.head { width: 100%; }
+        .role { font-size: 10pt; font-weight: bold; }
+        .date { font-size: 9pt; color: #4e5661; }
+        .sub { font-size: 10pt; color: #2f3947; margin: 4pt 0 0 0; }
+        ul.det { margin: 6pt 0 0 0; padding: ${wordListPad}; }
+        ul.det li { margin-bottom: 2pt; font-size: 10pt; }
+        .link { font-size: 9pt; margin: 6pt 0 0 0; }
+        .link a { color: #184d8f; }
+        .skill-sub { font-size: 10pt; color: #4e5661; border-bottom: 1px solid #d4d9e1; padding-bottom: 3pt; margin: 0 0 5pt 0; }
+        ul.skill-list { margin: 0; padding: ${wordListPad}; }
+        ul.skill-list li { font-size: 10pt; margin-bottom: 2pt; }
+        table.skills { width: 100%; }
+        .skill-col { width: 50%; vertical-align: top; padding: 0 6pt; }
       </style>
     </head>
-    <body style="${locale.dir === 'rtl' ? 'direction: rtl;' : 'direction: ltr;'}">
+    <body style="direction: ${locale.dir};">
       <div class="header">
-        <h1>${fullName}</h1>
-        <div class="job-title">${jobTitle}</div>
-        <div class="contact">
-          ${[email, phone, address, website].filter(Boolean).join(" | ")}
-        </div>
+        <h1>${escWord(fullName)}</h1>
+        <div class="job-title">${escWord(jobTitle)}</div>
+        <div class="contact">${[email, phone, address, website].filter(Boolean).map(escWord).join(" &nbsp;&nbsp; ")}</div>
       </div>
 
-      ${isSectionChecked("summary") && summary ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.summarySection}</div>
-          <p>${summary}</p>
-        </div>
-      ` : ''}
+      ${isSectionChecked("summary") && summary ? wordSection(locale.strings.summarySection, `<p>${escWord(summary)}</p>`) : ''}
 
-      ${isSectionChecked("experience") && experience.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.experienceSection}</div>
-          ${experience.map(exp => `
-            <div class="entry">
-              <div class="entry-head">
-                <span>${exp.role}</span>
-                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${exp.start} - ${exp.end || locale.strings.present}</span>
-              </div>
-              <div class="entry-sub">${[exp.company, exp.location].filter(Boolean).join(" | ")}</div>
-              <ul>
-                ${linesFromValue(exp.achievements).map(a => `<li>${a}</li>`).join('')}
-              </ul>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${isSectionChecked("experience") && experience.length ? wordSection(locale.strings.experienceSection, experience.map(exp => wordCard(
+        escWord(exp.role),
+        `${escWord(exp.start)} - ${escWord(exp.end || locale.strings.present)}`,
+        [exp.company, exp.location].filter(Boolean).map(escWord).join(" | "),
+        wordItems(linesFromValue(exp.achievements)),
+        ""
+      )).join('')) : ''}
 
-      ${isSectionChecked("education") && education.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.educationSection}</div>
-          ${education.map(edu => `
-            <div class="entry">
-              <div class="entry-head">
-                <span>${edu.degree}</span>
-                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${edu.start} - ${edu.end}</span>
-              </div>
-              <div class="entry-sub">${[edu.institution, edu.location].filter(Boolean).join(" | ")}</div>
-              <ul>
-                ${linesFromValue(edu.details).map(d => `<li>${d}</li>`).join('')}
-              </ul>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${isSectionChecked("education") && education.length ? wordSection(locale.strings.educationSection, education.map(edu => wordCard(
+        escWord(edu.degree),
+        `${escWord(edu.start)} - ${escWord(edu.end)}`,
+        [edu.institution, edu.location].filter(Boolean).map(escWord).join(" | "),
+        wordItems(linesFromValue(edu.details)),
+        ""
+      )).join('')) : ''}
 
-      ${isSectionChecked("projects") && projects.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.projectsSection}</div>
-          ${projects.map(proj => `
-            <div class="entry">
-              <div class="entry-head">${proj.name}</div>
-              <div class="entry-sub">${proj.description}</div>
-              ${proj.github ? `<div style="font-size: 9pt; color: blue;">${proj.github}</div>` : ''}
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${isSectionChecked("projects") && projects.length ? wordSection(locale.strings.projectsSection, projects.map(proj => wordCard(
+        escWord(proj.name),
+        "",
+        escWord(proj.description),
+        "",
+        proj.github ? `<p class="link"><a href="${escWord(normalizeGithubUrl(proj.github))}">${locale.strings.viewGithub}</a></p>` : ""
+      )).join('')) : ''}
 
-      ${isSectionChecked("courses") && courses.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.coursesSection}</div>
-          ${courses.map(course => `
-            <div class="entry">
-              <div class="entry-head">
-                <span>${course.name}</span>
-                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${course.date}</span>
-              </div>
-              <div class="entry-sub">${course.provider}</div>
-              <ul>
-                ${linesFromValue(course.details).map(d => `<li>${d}</li>`).join('')}
-              </ul>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${isSectionChecked("courses") && courses.length ? wordSection(locale.strings.coursesSection, courses.map(course => wordCard(
+        escWord(course.name),
+        escWord(course.date),
+        escWord(course.provider),
+        wordItems(linesFromValue(course.details)),
+        ""
+      )).join('')) : ''}
 
-      ${isSectionChecked("certificates") && certifications.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.certificatesSection}</div>
-          ${certifications.map(cert => `
-            <div class="entry">
-              <div class="entry-head">
-                <span>${cert.name}</span>
-                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${cert.date}</span>
-              </div>
-              <div class="entry-sub">${cert.issuer}</div>
-              <ul>
-                ${linesFromValue(cert.details).map(d => `<li>${d}</li>`).join('')}
-              </ul>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${isSectionChecked("certificates") && certifications.length ? wordSection(locale.strings.certificatesSection, certifications.map(cert => wordCard(
+        escWord(cert.name),
+        escWord(cert.date),
+        escWord(cert.issuer),
+        wordItems(linesFromValue(cert.details)),
+        ""
+      )).join('')) : ''}
 
-      ${isSectionChecked("skills") && hardSkills.length ? `
-        <div class="section">
-          <div class="section-title">Hard Skills</div>
-          <ul>
-            ${hardSkills.map(s => `<li>${s}</li>`).join('')}
-          </ul>
-        </div>
-      ` : ''}
+      ${isSectionChecked("skills") && (hardSkills.length || softSkills.length) ? wordSection(locale.strings.skillsSection,
+        hardSkills.length && softSkills.length
+          ? `<table class="skills" cellpadding="0" cellspacing="0"><tr>${wordSkillCol(locale.strings.hardSkillsLabel, hardSkills)}${wordSkillCol(locale.strings.softSkillsLabel, softSkills)}</tr></table>`
+          : hardSkills.length
+            ? wordSkillBlock(locale.strings.hardSkillsLabel, hardSkills)
+            : wordSkillBlock(locale.strings.softSkillsLabel, softSkills)
+      ) : ''}
 
-      ${isSectionChecked("skills") && softSkills.length ? `
-        <div class="section">
-          <div class="section-title">Soft Skills</div>
-          <ul>
-            ${softSkills.map(s => `<li>${s}</li>`).join('')}
-          </ul>
-        </div>
-      ` : ''}
-
-      ${isSectionChecked("languages") && languages.length ? `
-        <div class="section">
-          <div class="section-title">${locale.strings.languagesSection}</div>
-          <ul>
-            ${languages.map(l => `<li><strong>${l.name}:</strong> ${l.level}</li>`).join('')}
-          </ul>
-        </div>
-      ` : ''}
+      ${isSectionChecked("languages") && languages.length ? wordSection(locale.strings.languagesSection, languages.map(l => wordCard(
+        escWord(l.name) || locale.strings.langNameLabel,
+        escWord(l.level),
+        "",
+        "",
+        ""
+      )).join('')) : ''}
     </body>
     </html>
   `;
