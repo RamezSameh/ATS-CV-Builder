@@ -162,7 +162,6 @@
               <select id="aiProviderSelect">
                 <option value="gemini" data-i18n="aiProviderGemini">Google Gemini (مجاني)</option>
                 <option value="openai" data-i18n="aiProviderOpenai">OpenAI (مدفوع)</option>
-                <option value="custom" data-i18n="aiProviderCustom">مخصص</option>
               </select>
             </label>
             <label>
@@ -172,19 +171,10 @@
                 <button type="button" id="aiShowKeyBtn" class="ghost-btn" data-i18n="aiShowKey">إظهار</button>
               </div>
             </label>
-            <label>
-              <span data-i18n="aiEndpointLabel">رابط الـ API</span>
-              <input type="url" id="aiEndpointInput" value="https://api.openai.com/v1/chat/completions" autocomplete="off">
-            </label>
-            <label>
-              <span data-i18n="aiModelLabel">اسم الموديل</span>
-              <input type="text" id="aiModelInput" value="gpt-4o-mini" autocomplete="off" list="aiModelList">
-              <datalist id="aiModelList"></datalist>
-            </label>
+            <p class="section-hint"><span data-i18n="aiModelInUse">الموديل المستخدم:</span> <span id="aiModelDisplay"></span></p>
             <button type="button" id="aiRefineBtn" class="ghost-btn" data-i18n="aiRefineBtn">تحسين بالذكاء الاصطناعي</button>
             <button type="button" id="aiImproveBtn" class="ghost-btn" data-i18n="aiImproveBtn">تحسين الصياغة</button>
             <button type="button" id="aiTestBtn" class="ghost-btn" data-i18n="aiTestBtn">اختبار الاتصال</button>
-            <button type="button" id="aiModelsBtn" class="ghost-btn" data-i18n="aiModelsBtn">تحديث قائمة الموديلات</button>
             <button type="button" id="aiDetectBtn" class="ghost-btn" data-i18n="aiDetectBtn">اكتشاف الموديلات الشغالة</button>
             <p class="section-hint" data-i18n="aiImproveHint">تحسين الصياغة بياخد بياناتك الحالية ويقوّي النبذة والإنجازات من غير ما يخترع أرقام أو بيانات — ومش محتاج ملف PDF.</p>
             <label>
@@ -285,6 +275,6 @@
     </main>
   </div>
 
-  <script src="script.js?v=15"></script>
+  <script src="script.js?v=16"></script>
 </body>
 </html>

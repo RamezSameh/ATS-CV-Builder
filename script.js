@@ -174,22 +174,17 @@ const i18n = {
       aiProviderLabel: "مزود الخدمة",
       aiProviderGemini: "Google Gemini (مجاني)",
       aiProviderOpenai: "OpenAI (مدفوع)",
-      aiProviderCustom: "مخصص",
-      aiEndpointLabel: "رابط الـ API",
-      aiModelLabel: "اسم الموديل",
+      aiModelInUse: "الموديل المستخدم:",
       aiRefineBtn: "تحسين بالذكاء الاصطناعي",
       aiStatusNeedKey: "أدخل مفتاح API أولًا.",
       aiStatusNoText: "استورد ملف PDF أولًا حتى يتوفر النص الخام للتحسين.",
       aiStatusWorking: "جاري تحسين البيانات بالذكاء الاصطناعي...",
       aiStatusDone: "تم تحسين البيانات بنجاح. راجع الحقول ثم اطبع.",
       aiStatusReviewReady: "تم إعداد النتيجة — راجع التغييرات وطبق اللي يعجبك.",
-      aiStatusError: "فشل الاتصال بخدمة الذكاء الاصطناعي. تحقق من المفتاح والرابط واسم الموديل.",
+      aiStatusError: "فشل الاتصال بخدمة الذكاء الاصطناعي. تحقق من المفتاح والمزود.",
       aiTestBtn: "اختبار الاتصال",
       aiStatusTesting: "جاري اختبار الاتصال...",
       aiStatusTestOk: "الاتصال ناجح. الموديلات المتاحة:",
-      aiModelsBtn: "تحديث قائمة الموديلات",
-      aiStatusModelsLoading: "جاري تحميل قائمة الموديلات...",
-      aiStatusModelsOk: "تم تحميل قائمة الموديلات — اختار من الاقتراحات أو اكتب اسمًا مخصصًا.",
       aiStatusModelsEmpty: "لم يتم العثور على موديلات متاحة.",
       aiDetectBtn: "اكتشاف الموديلات الشغالة",
       aiStatusDetecting: "جاري اختبار الموديلات المتاحة تلقائيًا...",
@@ -420,22 +415,17 @@ const i18n = {
       aiProviderLabel: "Provider",
       aiProviderGemini: "Google Gemini (free)",
       aiProviderOpenai: "OpenAI (paid)",
-      aiProviderCustom: "Custom",
-      aiEndpointLabel: "API endpoint",
-      aiModelLabel: "Model name",
+      aiModelInUse: "Model in use:",
       aiRefineBtn: "Refine with AI",
       aiStatusNeedKey: "Enter an API key first.",
       aiStatusNoText: "Import a PDF first so raw text is available for refinement.",
       aiStatusWorking: "Refining data with AI...",
       aiStatusDone: "Data refined successfully. Review the fields, then print.",
       aiStatusReviewReady: "Result ready — review the changes and apply what you like.",
-      aiStatusError: "Failed to reach the AI service. Check the key, endpoint, and model name.",
+      aiStatusError: "Failed to reach the AI service. Check the key and provider.",
       aiTestBtn: "Test connection",
       aiStatusTesting: "Testing connection...",
       aiStatusTestOk: "Connection OK. Available models:",
-      aiModelsBtn: "Refresh model list",
-      aiStatusModelsLoading: "Loading model list...",
-      aiStatusModelsOk: "Model list loaded — pick from the suggestions or type a custom name.",
       aiStatusModelsEmpty: "No models found.",
       aiDetectBtn: "Detect working models",
       aiStatusDetecting: "Auto-testing available models...",
@@ -2543,10 +2533,14 @@ printBtn.addEventListener("click", () => {
 });
 
 // --- AI-powered PDF extraction refinement (bring your own API key) ---
+// The user only picks a provider and pastes a key. The endpoint comes
+// from the provider preset and the model comes from auto-detection
+// (first working model) or the preset default — there are no editable
+// endpoint/model fields, so a stale endpoint or model can never break
+// a freshly pasted key again.
 const AI_SETTINGS_KEY = "atsCvAiSettings.v1";
 const aiApiKeyInput = document.getElementById("aiApiKeyInput");
-const aiEndpointInput = document.getElementById("aiEndpointInput");
-const aiModelInput = document.getElementById("aiModelInput");
+const aiModelDisplay = document.getElementById("aiModelDisplay");
 const aiRefineBtn = document.getElementById("aiRefineBtn");
 const aiImproveBtn = document.getElementById("aiImproveBtn");
 const aiTestBtn = document.getElementById("aiTestBtn");
@@ -2571,25 +2565,52 @@ const AI_RETIRED_MODEL_FALLBACK = {
   "gemini-flash-latest": "gemini-3-flash-preview"
 };
 
-function detectAiProvider(endpoint) {
-  const ep = (endpoint || "").trim();
-  if (ep === AI_PRESETS.gemini.endpoint) return "gemini";
-  if (ep === AI_PRESETS.openai.endpoint) return "openai";
-  return "custom";
+// The model actually used. Starts as the preset default, then moves to
+// the first working model found by auto-detection (persisted).
+let aiCurrentModel = "";
+
+function getAiProvider() {
+  const value = aiProviderSelect ? aiProviderSelect.value : "gemini";
+  return AI_PRESETS[value] ? value : "gemini";
+}
+
+function getAiEndpoint() {
+  return AI_PRESETS[getAiProvider()].endpoint;
+}
+
+function getAiModel() {
+  return normalizeModelName(aiCurrentModel) || AI_PRESETS[getAiProvider()].model;
+}
+
+function setAiModel(model) {
+  aiCurrentModel = normalizeModelName(model);
+  syncAiModelDisplay();
+}
+
+function syncAiModelDisplay() {
+  if (!aiModelDisplay) return;
+  aiModelDisplay.textContent = getAiModel();
 }
 
 function applyAiPreset(name) {
-  const preset = AI_PRESETS[name];
-
-  if (preset) {
-    if (aiEndpointInput) aiEndpointInput.value = preset.endpoint;
-    if (aiModelInput) aiModelInput.value = preset.model;
-  }
-
-  if (aiProviderSelect) aiProviderSelect.value = preset ? name : "custom";
-  // Suggestions belong to the previous provider; clear until re-fetched.
-  populateModelDatalist([]);
+  const presetName = AI_PRESETS[name] ? name : "gemini";
+  if (aiProviderSelect) aiProviderSelect.value = presetName;
+  // Fresh provider: start from its default model; auto-detection will
+  // replace it with the first model that actually answers.
+  setAiModel(AI_PRESETS[presetName].model);
   saveAiSettings();
+}
+
+// A pasted key reveals its provider: Google keys start with "AIza",
+// OpenAI keys with "sk-". Switch presets automatically so a key is
+// never tested against the wrong provider's endpoint.
+function matchProviderToKey(key) {
+  const provider = key.startsWith("AIza") ? "gemini" : key.startsWith("sk-") ? "openai" : "";
+  if (provider && provider !== getAiProvider()) {
+    applyAiPreset(provider);
+    return true;
+  }
+  return false;
 }
 
 const AI_EXTRACT_SYSTEM_PROMPT = [
@@ -2618,19 +2639,9 @@ const AI_IMPROVE_SYSTEM_PROMPT = [
 function loadAiSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(AI_SETTINGS_KEY) || "{}");
-    const hasSaved = Boolean(saved.apiKey || saved.endpoint || saved.model || saved.provider);
+    const hasSaved = Boolean(saved.apiKey || saved.model || saved.provider);
 
     if (saved.apiKey && aiApiKeyInput) aiApiKeyInput.value = saved.apiKey;
-    if (saved.endpoint && aiEndpointInput) aiEndpointInput.value = saved.endpoint;
-    if (saved.model && aiModelInput) aiModelInput.value = saved.model;
-
-    // Migrate retired models to working equivalents.
-    if (aiModelInput) {
-      const fallback = AI_RETIRED_MODEL_FALLBACK[aiModelInput.value.trim()];
-      if (fallback) {
-        aiModelInput.value = fallback;
-      }
-    }
 
     if (!hasSaved) {
       // Fresh start: default to the free Gemini preset.
@@ -2639,12 +2650,14 @@ function loadAiSettings() {
     }
 
     if (aiProviderSelect) {
-      aiProviderSelect.value = saved.provider || detectAiProvider(aiEndpointInput && aiEndpointInput.value);
+      aiProviderSelect.value = AI_PRESETS[saved.provider] ? saved.provider : "gemini";
     }
 
-    // Offer the models proven working by the last auto-detection.
-    const cachedWorking = getCachedAiWorkingModels(aiEndpointInput ? normalizeEndpoint(aiEndpointInput.value) : "");
-    if (cachedWorking.length) populateModelDatalist(cachedWorking);
+    // A previously saved endpoint is ignored on purpose: it is derived
+    // from the provider now, so an old endpoint can no longer break a
+    // newly pasted key. Migrate retired models to working equivalents.
+    const savedModel = normalizeModelName(saved.model || "");
+    setAiModel(AI_RETIRED_MODEL_FALLBACK[savedModel] || savedModel || AI_PRESETS[getAiProvider()].model);
   } catch (error) {
     console.warn("Could not load AI settings:", error);
   }
@@ -2655,10 +2668,9 @@ function saveAiSettings() {
     localStorage.setItem(
       AI_SETTINGS_KEY,
       JSON.stringify({
-        provider: aiProviderSelect ? aiProviderSelect.value : "custom",
+        provider: getAiProvider(),
         apiKey: aiApiKeyInput ? aiApiKeyInput.value.trim() : "",
-        endpoint: aiEndpointInput ? aiEndpointInput.value.trim() : "",
-        model: aiModelInput ? aiModelInput.value.trim() : ""
+        model: getAiModel()
       })
     );
   } catch (error) {
@@ -2777,57 +2789,6 @@ async function fetchAiModelNames(apiKey, endpoint) {
     .filter(Boolean);
 }
 
-// Fill the model input's suggestion list (a datalist keeps free typing).
-function populateModelDatalist(names) {
-  const list = document.getElementById("aiModelList");
-  if (!list) return;
-
-  list.innerHTML = "";
-  (names || []).slice(0, 100).forEach((name) => {
-    const option = document.createElement("option");
-    option.value = name;
-    list.appendChild(option);
-  });
-}
-
-async function refreshAiModels() {
-  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
-
-  if (!apiKey) {
-    setImportStatus("aiStatusNeedKey");
-    return;
-  }
-
-  if (!endpoint) {
-    setImportStatusWithDetail("aiStatusError", "endpoint is empty");
-    return;
-  }
-
-  saveAiSettings();
-  setImportStatus("aiStatusModelsLoading");
-  if (aiModelsBtn) aiModelsBtn.disabled = true;
-
-  try {
-    const names = await fetchAiModelNames(apiKey, endpoint);
-    populateModelDatalist(names);
-
-    if (names.length) {
-      setImportStatusWithDetail("aiStatusModelsOk", names.length + " models");
-    } else {
-      setImportStatus("aiStatusModelsEmpty");
-    }
-  } catch (error) {
-    console.error("AI models error:", error);
-    const detail = error && error.message === "Failed to fetch"
-      ? "network/CORS blocked"
-      : (error && error.message) || "";
-    setImportStatusWithDetail("aiStatusError", detail);
-  } finally {
-    if (aiModelsBtn) aiModelsBtn.disabled = false;
-  }
-}
-
 // ---- Automatic working-model detection ----
 // Just entering an API key is enough: the tool fetches the provider's
 // model list, probes each chat-capable model with a minimal "ping"
@@ -2912,14 +2873,14 @@ function orderAiCandidates(names, currentModel, presetModel) {
 }
 
 function setAiDetectButtonsDisabled(disabled) {
-  [aiDetectBtn, aiTestBtn, aiModelsBtn].forEach((btn) => {
+  [aiDetectBtn, aiTestBtn].forEach((btn) => {
     if (btn) btn.disabled = disabled;
   });
 }
 
 async function detectWorkingAiModels({ manual = false } = {}) {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+  const endpoint = getAiEndpoint();
 
   if (!apiKey || apiKey.length < AI_DETECT_MIN_KEY_LEN) {
     if (manual) setImportStatus("aiStatusNeedKey");
@@ -2945,7 +2906,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
     const presetModel = (aiProviderSelect && AI_PRESETS[aiProviderSelect.value])
       ? AI_PRESETS[aiProviderSelect.value].model
       : "";
-    const candidates = orderAiCandidates(names, aiModelInput ? aiModelInput.value : "", presetModel);
+    const candidates = orderAiCandidates(names, getAiModel(), presetModel);
 
     if (!candidates.length) {
       setImportStatus("aiStatusModelsEmpty");
@@ -2986,8 +2947,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
       return [];
     }
 
-    populateModelDatalist(working);
-    if (aiModelInput) aiModelInput.value = working[0];
+    setAiModel(working[0]);
     saveCachedAiWorkingModels(endpoint, working);
     saveAiSettings();
     setImportStatusWithDetail("aiStatusDetectOk", working.length + " working · using " + working[0]);
@@ -3012,7 +2972,7 @@ function scheduleAiAutoDetect() {
   if (aiDetectTimer) clearTimeout(aiDetectTimer);
   aiDetectTimer = setTimeout(() => {
     const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-    const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+    const endpoint = getAiEndpoint();
     if (apiKey.length < AI_DETECT_MIN_KEY_LEN) return;
     if (apiKey === aiLastDetectKey && endpoint === aiLastDetectEndpoint) return;
     detectWorkingAiModels();
@@ -3021,7 +2981,7 @@ function scheduleAiAutoDetect() {
 
 async function testAiConnection() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+  const endpoint = getAiEndpoint();
 
   if (!apiKey) {
     setImportStatus("aiStatusNeedKey");
@@ -3039,11 +2999,10 @@ async function testAiConnection() {
 
   try {
     const names = await fetchAiModelNames(apiKey, endpoint);
-    populateModelDatalist(names);
 
     // Probe a minimal chat completion: isolates whether /chat/completions
     // itself works for this key, independent of the PDF/system prompt shape.
-    const probeModel = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+    const probeModel = getAiModel();
     const chatRes = await fetchWithRetry(endpoint, {
       method: "POST",
       headers: {
@@ -3073,10 +3032,6 @@ async function testAiConnection() {
   } finally {
     aiTestBtn.disabled = false;
   }
-}
-
-function normalizeEndpoint(endpoint) {
-  return (endpoint || "").trim().replace(/\/+$/, "");
 }
 
 // Retries transient failures (503 overloaded, 429 rate-limited) with
@@ -3273,7 +3228,7 @@ function undoAiApply() {
 // JSON content. Throws with .status attached on HTTP errors.
 async function callAiChatWithModel(systemPrompt, userContent, temperature, model) {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "") || "https://api.openai.com/v1/chat/completions";
+  const endpoint = getAiEndpoint();
 
   const response = await fetchWithRetry(endpoint, {
     method: "POST",
@@ -3310,8 +3265,8 @@ async function callAiChatWithModel(systemPrompt, userContent, temperature, model
 // once with the next model from the last auto-detection — and keep that
 // model selected, so the next call uses a working model directly.
 async function callAiChat(systemPrompt, userContent, temperature) {
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "") || "https://api.openai.com/v1/chat/completions";
-  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+  const endpoint = getAiEndpoint();
+  const model = getAiModel();
 
   try {
     return await callAiChatWithModel(systemPrompt, userContent, temperature, model);
@@ -3324,7 +3279,7 @@ async function callAiChat(systemPrompt, userContent, temperature) {
     if (!fallback) throw error;
 
     const result = await callAiChatWithModel(systemPrompt, userContent, temperature, fallback);
-    if (aiModelInput) aiModelInput.value = fallback;
+    setAiModel(fallback);
     saveAiSettings();
     return result;
   }
@@ -3332,8 +3287,8 @@ async function callAiChat(systemPrompt, userContent, temperature) {
 
 // Diagnostic context (no secrets): shows exactly what was sent.
 function aiErrorDetail(error) {
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
-  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+  const endpoint = getAiEndpoint();
+  const model = getAiModel();
   const detail = error && error.message === "Failed to fetch"
     ? "network/CORS blocked"
     : (error && error.message) || "";
@@ -3505,11 +3460,6 @@ if (aiTestBtn) {
   aiTestBtn.addEventListener("click", testAiConnection);
 }
 
-const aiModelsBtn = document.getElementById("aiModelsBtn");
-if (aiModelsBtn) {
-  aiModelsBtn.addEventListener("click", refreshAiModels);
-}
-
 const aiDetectBtn = document.getElementById("aiDetectBtn");
 if (aiDetectBtn) {
   aiDetectBtn.addEventListener("click", () => detectWorkingAiModels({ manual: true }));
@@ -3522,22 +3472,17 @@ if (aiProviderSelect) {
   });
 }
 
-// Manual edits to endpoint/model switch the provider to "custom".
-[aiEndpointInput, aiModelInput].forEach((input) => {
-  if (input) {
-    input.addEventListener("input", () => {
-      if (aiProviderSelect && detectAiProvider(aiEndpointInput.value) !== aiProviderSelect.value) {
-        aiProviderSelect.value = "custom";
-      }
-      saveAiSettings();
-    });
-  }
-});
+// Typing/pasting a key saves it, matches the provider to the key format
+// (AIza → Gemini, sk- → OpenAI), and auto-detects working models.
+function onAiKeyInput() {
+  saveAiSettings();
+  const key = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  matchProviderToKey(key);
+  scheduleAiAutoDetect();
+}
 
 if (aiApiKeyInput) {
-  aiApiKeyInput.addEventListener("input", saveAiSettings);
-  // Typing/pasting a key auto-detects the working models (debounced).
-  aiApiKeyInput.addEventListener("input", scheduleAiAutoDetect);
+  aiApiKeyInput.addEventListener("input", onAiKeyInput);
 }
 
 downloadWordBtn.addEventListener("click", () => {

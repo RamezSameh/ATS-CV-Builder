@@ -6,7 +6,7 @@ A free, privacy-first **ATS-friendly CV builder** that runs entirely in your bro
 
 - **🔴 Live preview** — your CV updates in real time as you type
 - **📊 ATS compatibility score** — instant score (0–100) with a checklist: contact info, summary length, skills count, quantified achievements, experience, education and more
-- **🤖 AI refinement (optional)** — import a PDF and let AI clean up the extracted text before filling the form; works with Google Gemini (free), OpenAI, or any custom endpoint. Your API key stays in your browser only
+- **🤖 AI refinement (optional)** — import a PDF and let AI clean up the extracted text before filling the form; works with Google Gemini (free) or OpenAI. Just pick a provider and paste your API key — the tool automatically finds a working model. Your API key stays in your browser only
 - **📥 PDF import** — upload an existing CV and auto-fill the form via pdf.js
 - **🖨️ Export** — print to PDF or download as Word (`.doc`)
 - **🌍 Bilingual UI** — full Arabic (RTL) and English interface
@@ -50,10 +50,11 @@ Then open `index.html` in your browser (or serve the folder with any static serv
 ## 🤖 Using the AI Refinement
 
 1. Import your CV as PDF (or type your details manually).
-2. Open the *AI refinement* section, paste your API key and pick a provider:
+2. Open the *AI refinement* section, pick a provider and paste your API key:
    - **Google Gemini** (free tier available)
    - **OpenAI**
-   - **Custom** endpoint + model
+   
+   The tool automatically detects a working model for your key — no endpoint or model to configure.
 3. Click *Refine* — the AI cleans and structures the extracted text, then the form is auto-filled.
 
 > Your API key is stored only in your browser's localStorage and is sent directly to the provider you choose. It never touches any other server.
