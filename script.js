@@ -2547,11 +2547,17 @@ const aiTestBtn = document.getElementById("aiTestBtn");
 const aiProviderSelect = document.getElementById("aiProviderSelect");
 
 const AI_PRESETS = {
+  // Gemini uses its NATIVE API, not the OpenAI-compatible one: the new
+  // AQ. ("Auth key") keys AI Studio issues no longer work with Bearer
+  // auth on /v1beta/openai/..., but they do work natively with the
+  // x-goog-api-key header (and so do the old AIza keys).
   gemini: {
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    kind: "gemini",
+    modelsBase: "https://generativelanguage.googleapis.com/v1beta/models",
     model: "gemini-3-flash-preview"
   },
   openai: {
+    kind: "openai",
     endpoint: "https://api.openai.com/v1/chat/completions",
     model: "gpt-4o-mini"
   }
@@ -2574,8 +2580,22 @@ function getAiProvider() {
   return AI_PRESETS[value] ? value : "gemini";
 }
 
-function getAiEndpoint() {
-  return AI_PRESETS[getAiProvider()].endpoint;
+// Chat URL for a given model: native generateContent for Gemini (the
+// model is part of the URL), plain chat/completions for OpenAI.
+function aiChatUrlFor(model) {
+  const preset = AI_PRESETS[getAiProvider()];
+  if (preset.kind === "gemini") {
+    return preset.modelsBase + "/" + normalizeModelName(model) + ":generateContent";
+  }
+  return preset.endpoint;
+}
+
+// Model-list URL: native /models for Gemini, /models next to
+// chat/completions for OpenAI.
+function aiModelsUrlFor() {
+  const preset = AI_PRESETS[getAiProvider()];
+  if (preset.kind === "gemini") return preset.modelsBase;
+  return preset.endpoint.replace(/\/chat\/completions\/?$/i, "/models");
 }
 
 function getAiModel() {
@@ -2601,11 +2621,13 @@ function applyAiPreset(name) {
   saveAiSettings();
 }
 
-// A pasted key reveals its provider: Google keys start with "AIza",
-// OpenAI keys with "sk-". Switch presets automatically so a key is
-// never tested against the wrong provider's endpoint.
+// A pasted key reveals its provider: Google keys start with "AIza"
+// (old) or "AQ." (new Auth keys), OpenAI keys with "sk-". Switch
+// presets automatically so a key is never tested against the wrong
+// provider's endpoint.
 function matchProviderToKey(key) {
-  const provider = key.startsWith("AIza") ? "gemini" : key.startsWith("sk-") ? "openai" : "";
+  const provider = (key.startsWith("AIza") || key.startsWith("AQ.")) ? "gemini"
+    : key.startsWith("sk-") ? "openai" : "";
   if (provider && provider !== getAiProvider()) {
     applyAiPreset(provider);
     return true;
@@ -2763,18 +2785,33 @@ async function readApiErrorDetail(response) {
   }
 }
 
-function aiModelsUrl(endpoint) {
-  return endpoint.replace(/\/chat\/completions\/?$/i, "/models");
-}
-
 // The /models endpoint returns ids like "models/gemini-2.5-flash", but chat
 // completions expects the bare name ("gemini-2.5-flash"). Normalize both.
 function normalizeModelName(model) {
   return (model || "").trim().replace(/^models\//i, "");
 }
 
-async function fetchAiModelNames(apiKey, endpoint) {
-  const res = await fetch(aiModelsUrl(endpoint), {
+async function fetchAiModelNames(apiKey) {
+  // Gemini lists models natively (x-goog-api-key works for both AQ.
+  // and AIza keys); OpenAI lists them OpenAI-style (Bearer).
+  if (AI_PRESETS[getAiProvider()].kind === "gemini") {
+    const res = await fetch(aiModelsUrlFor(), {
+      headers: { "x-goog-api-key": apiKey }
+    });
+    const raw = await res.text();
+
+    if (!res.ok) {
+      throw new Error(await readApiErrorDetail({ status: res.status, text: async () => raw }));
+    }
+
+    const data = JSON.parse(raw);
+    return ((data && data.models) || [])
+      .filter((m) => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes("generateContent"))
+      .map((m) => normalizeModelName(m.name))
+      .filter(Boolean);
+  }
+
+  const res = await fetch(aiModelsUrlFor(), {
     headers: { Authorization: "Bearer " + apiKey }
   });
   const raw = await res.text();
@@ -2804,16 +2841,16 @@ const AI_NON_CHAT_MODEL = /embed|whisper|tts|image|dall|moderation|rerank|realti
 let aiDetectRunId = 0;
 let aiDetectTimer = null;
 let aiLastDetectKey = "";
-let aiLastDetectEndpoint = "";
+let aiLastDetectProvider = "";
 // The most informative failure of the last detection run, if any (e.g.
 // the /models fetch rejecting the key). callAiChat prefers it over a
 // bare "HTTP 400" when its own recovery detection finds nothing.
 let aiLastDetectError = "";
 
-function getCachedAiWorkingModels(endpoint) {
+function getCachedAiWorkingModels() {
   try {
     const cached = JSON.parse(localStorage.getItem(AI_WORKING_MODELS_KEY) || "null");
-    if (cached && cached.endpoint === endpoint && Array.isArray(cached.models)) {
+    if (cached && cached.provider === getAiProvider() && Array.isArray(cached.models)) {
       return cached.models;
     }
   } catch (error) {
@@ -2822,25 +2859,47 @@ function getCachedAiWorkingModels(endpoint) {
   return [];
 }
 
-function saveCachedAiWorkingModels(endpoint, models) {
+function saveCachedAiWorkingModels(models) {
   try {
-    localStorage.setItem(AI_WORKING_MODELS_KEY, JSON.stringify({ endpoint, models }));
+    localStorage.setItem(AI_WORKING_MODELS_KEY, JSON.stringify({ provider: getAiProvider(), models }));
   } catch (error) {
     // Cache is best-effort; detection still works without it.
   }
 }
 
-// One minimal chat completion: true when the model answers at all.
-// Reasoning-style models reject max_tokens, so retry those with
-// max_completion_tokens before giving up on the model.
-async function probeAiModel(apiKey, endpoint, model) {
+// One minimal completion: true when the model answers at all.
+// Gemini is probed natively (x-goog-api-key); OpenAI-style providers
+// with Bearer. Reasoning-style OpenAI models reject max_tokens, so
+// retry those with max_completion_tokens before giving up.
+async function probeAiModel(apiKey, model) {
+  if (AI_PRESETS[getAiProvider()].kind === "gemini") {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_PROBE_TIMEOUT_MS);
+    try {
+      const res = await fetch(aiChatUrlFor(model), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "ping" }] }],
+          generationConfig: { maxOutputTokens: 5 }
+        }),
+        signal: controller.signal
+      });
+      return { ok: res.ok, status: res.status };
+    } catch (error) {
+      return { ok: false, status: 0 };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   const headers = { "Content-Type": "application/json", Authorization: "Bearer " + apiKey };
 
   for (const maxKey of ["max_tokens", "max_completion_tokens"]) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AI_PROBE_TIMEOUT_MS);
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch(aiChatUrlFor(model), {
         method: "POST",
         headers,
         body: JSON.stringify({ model, [maxKey]: 5, messages: [{ role: "user", content: "ping" }] }),
@@ -2882,30 +2941,24 @@ function setAiDetectButtonsDisabled(disabled) {
   });
 }
 
-async function detectWorkingAiModels({ manual = false } = {}) {
+async function detectWorkingAiModels({ manual = false, limit = AI_DETECT_MAX_MODELS } = {}) {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = getAiEndpoint();
 
   if (!apiKey || apiKey.length < AI_DETECT_MIN_KEY_LEN) {
     if (manual) setImportStatus("aiStatusNeedKey");
     return [];
   }
 
-  if (!endpoint) {
-    if (manual) setImportStatusWithDetail("aiStatusError", "endpoint is empty");
-    return [];
-  }
-
   const runId = ++aiDetectRunId;
   aiLastDetectKey = apiKey;
-  aiLastDetectEndpoint = endpoint;
+  aiLastDetectProvider = getAiProvider();
   aiLastDetectError = "";
   saveAiSettings();
   setImportStatus("aiStatusDetecting");
   setAiDetectButtonsDisabled(true);
 
   try {
-    const names = await fetchAiModelNames(apiKey, endpoint);
+    const names = await fetchAiModelNames(apiKey);
     if (runId !== aiDetectRunId) return [];
 
     const presetModel = (aiProviderSelect && AI_PRESETS[aiProviderSelect.value])
@@ -2925,7 +2978,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
       const batch = candidates.slice(i, i + AI_DETECT_BATCH);
       const results = await Promise.all(batch.map(async (model) => ({
         model,
-        ...(await probeAiModel(apiKey, endpoint, model))
+        ...(await probeAiModel(apiKey, model))
       })));
       results.forEach((result) => {
         if (result.ok) {
@@ -2954,7 +3007,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
     }
 
     setAiModel(working[0]);
-    saveCachedAiWorkingModels(endpoint, working);
+    saveCachedAiWorkingModels(working);
     saveAiSettings();
     setImportStatusWithDetail("aiStatusDetectOk", working.length + " working · using " + working[0]);
     return working;
@@ -2974,29 +3027,22 @@ async function detectWorkingAiModels({ manual = false } = {}) {
 
 // Debounced auto-run: fires ~900ms after the user stops typing a key,
 // or right after switching provider while a key is set. Skips when the
-// same key+endpoint was already detected (no repeated probing on load).
+// same key+provider was already detected (no repeated probing on load).
 function scheduleAiAutoDetect() {
   if (aiDetectTimer) clearTimeout(aiDetectTimer);
   aiDetectTimer = setTimeout(() => {
     const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-    const endpoint = getAiEndpoint();
     if (apiKey.length < AI_DETECT_MIN_KEY_LEN) return;
-    if (apiKey === aiLastDetectKey && endpoint === aiLastDetectEndpoint) return;
+    if (apiKey === aiLastDetectKey && getAiProvider() === aiLastDetectProvider) return;
     detectWorkingAiModels();
   }, 900);
 }
 
 async function testAiConnection() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = getAiEndpoint();
 
   if (!apiKey) {
     setImportStatus("aiStatusNeedKey");
-    return;
-  }
-
-  if (!endpoint) {
-    setImportStatusWithDetail("aiStatusError", "endpoint is empty");
     return;
   }
 
@@ -3005,28 +3051,15 @@ async function testAiConnection() {
   aiTestBtn.disabled = true;
 
   try {
-    const names = await fetchAiModelNames(apiKey, endpoint);
+    const names = await fetchAiModelNames(apiKey);
 
-    // Probe a minimal chat completion: isolates whether /chat/completions
-    // itself works for this key, independent of the PDF/system prompt shape.
+    // Probe a minimal completion: isolates whether generation itself
+    // works for this key, independent of the PDF/system prompt shape.
     const probeModel = getAiModel();
-    const chatRes = await fetchWithRetry(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey
-      },
-      body: JSON.stringify({
-        model: probeModel,
-        max_tokens: 5,
-        messages: [{ role: "user", content: "ping" }]
-      })
-    }, { retries: 2, baseDelayMs: 800 });
-    const chatRaw = await chatRes.text();
+    const probe = await probeAiModel(apiKey, probeModel);
 
-    if (!chatRes.ok) {
-      const chatDetail = await readApiErrorDetail({ status: chatRes.status, text: async () => chatRaw });
-      throw new Error(`chat probe: ${chatDetail} [model="${probeModel}"]`);
+    if (!probe.ok) {
+      throw new Error(`chat probe: HTTP ${probe.status} [model="${probeModel}"]`);
     }
 
     setImportStatusWithDetail("aiStatusTestOk", "chat OK · " + (names.slice(0, 12).join(", ") || "—"));
@@ -3231,19 +3264,24 @@ function undoAiApply() {
   setImportStatus("aiStatusUndone");
 }
 
-// One chat-completions call with an explicit model, returning the parsed
+// One generation call with an explicit model, returning the parsed
 // JSON content. Throws with .status attached on HTTP errors.
+// Gemini goes through its native generateContent API (x-goog-api-key);
+// OpenAI-style providers through chat/completions (Bearer).
 async function callAiChatWithModel(systemPrompt, userContent, temperature, model) {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = getAiEndpoint();
+  const isGemini = AI_PRESETS[getAiProvider()].kind === "gemini";
 
-  const response = await fetchWithRetry(endpoint, {
+  const response = await fetchWithRetry(aiChatUrlFor(model), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + apiKey
-    },
-    body: JSON.stringify({
+    headers: isGemini
+      ? { "Content-Type": "application/json", "x-goog-api-key": apiKey }
+      : { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+    body: JSON.stringify(isGemini ? {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userContent }] }],
+      generationConfig: { temperature: temperature }
+    } : {
       model: model,
       temperature: temperature,
       messages: [
@@ -3260,7 +3298,13 @@ async function callAiChatWithModel(systemPrompt, userContent, temperature, model
   }
 
   const result = await response.json();
-  let content = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
+  let content;
+  if (isGemini) {
+    const parts = (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts) || [];
+    content = parts.map((part) => part.text || "").join("");
+  } else {
+    content = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
+  }
 
   content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
@@ -3276,7 +3320,6 @@ async function callAiChatWithModel(systemPrompt, userContent, temperature, model
 // original error is rethrown — or the detection's more informative
 // failure (e.g. the key itself being rejected) when there is one.
 async function callAiChat(systemPrompt, userContent, temperature) {
-  const endpoint = getAiEndpoint();
   const model = getAiModel();
 
   try {
@@ -3284,7 +3327,7 @@ async function callAiChat(systemPrompt, userContent, temperature) {
   } catch (error) {
     if (error.status !== 400 && error.status !== 404) throw error;
 
-    const cached = getCachedAiWorkingModels(endpoint).find((name) => name !== model);
+    const cached = getCachedAiWorkingModels().find((name) => name !== model);
     if (cached) {
       const result = await callAiChatWithModel(systemPrompt, userContent, temperature, cached);
       setAiModel(cached);
@@ -3308,7 +3351,7 @@ async function callAiChat(systemPrompt, userContent, temperature) {
 
 // Diagnostic context (no secrets): shows exactly what was sent.
 function aiErrorDetail(error) {
-  const endpoint = getAiEndpoint();
+  const endpoint = aiChatUrlFor(getAiModel());
   const model = getAiModel();
   const detail = error && error.message === "Failed to fetch"
     ? "network/CORS blocked"
