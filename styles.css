@@ -324,6 +324,12 @@ textarea:focus,
 .ai-key-row .ghost-btn {
   margin-top: 4px;
   white-space: nowrap;
+  /* Override the full-width .ghost-btn rule: the button must size to
+     its label so the key input keeps the rest of the row. Without
+     this the button hogs the row and the input collapses to a sliver
+     (seen on a phone screenshot: tiny key box + full-width button). */
+  width: auto;
+  flex-shrink: 0;
 }
 
 .ai-review-panel {
