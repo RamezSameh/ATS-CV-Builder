@@ -3531,6 +3531,9 @@ if (aiShowKeyBtn) {
 if (aiRefineBtn) {
   aiRefineBtn.addEventListener("click", refineWithAi);
   loadAiSettings();
+  // The key field is visible by default now: sync the toggle label
+  // ("Hide") with the actual input type on load.
+  syncAiKeyButton();
 }
 
 if (aiImproveBtn) {
