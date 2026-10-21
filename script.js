@@ -2805,6 +2805,10 @@ let aiDetectRunId = 0;
 let aiDetectTimer = null;
 let aiLastDetectKey = "";
 let aiLastDetectEndpoint = "";
+// The most informative failure of the last detection run, if any (e.g.
+// the /models fetch rejecting the key). callAiChat prefers it over a
+// bare "HTTP 400" when its own recovery detection finds nothing.
+let aiLastDetectError = "";
 
 function getCachedAiWorkingModels(endpoint) {
   try {
@@ -2895,6 +2899,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
   const runId = ++aiDetectRunId;
   aiLastDetectKey = apiKey;
   aiLastDetectEndpoint = endpoint;
+  aiLastDetectError = "";
   saveAiSettings();
   setImportStatus("aiStatusDetecting");
   setAiDetectButtonsDisabled(true);
@@ -2906,7 +2911,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
     const presetModel = (aiProviderSelect && AI_PRESETS[aiProviderSelect.value])
       ? AI_PRESETS[aiProviderSelect.value].model
       : "";
-    const candidates = orderAiCandidates(names, getAiModel(), presetModel);
+    const candidates = orderAiCandidates(names, getAiModel(), presetModel).slice(0, limit);
 
     if (!candidates.length) {
       setImportStatus("aiStatusModelsEmpty");
@@ -2940,7 +2945,8 @@ async function detectWorkingAiModels({ manual = false } = {}) {
       // Every probe rejected on auth: the key itself is wrong (or still
       // half-typed), which is more useful than "no working model".
       if (failures.length && failures.every((status) => status === 401 || status === 403)) {
-        setImportStatusWithDetail("aiStatusError", "invalid API key (HTTP " + failures[0] + ")");
+        aiLastDetectError = "invalid API key (HTTP " + failures[0] + ")";
+        setImportStatusWithDetail("aiStatusError", aiLastDetectError);
       } else {
         setImportStatus("aiStatusDetectNone");
       }
@@ -2958,6 +2964,7 @@ async function detectWorkingAiModels({ manual = false } = {}) {
     const detail = error && error.message === "Failed to fetch"
       ? "network/CORS blocked"
       : (error && error.message) || "";
+    aiLastDetectError = detail;
     setImportStatusWithDetail("aiStatusError", detail);
     return [];
   } finally {
@@ -3261,9 +3268,13 @@ async function callAiChatWithModel(systemPrompt, userContent, temperature, model
 }
 
 // One chat-completions call returning the parsed JSON content.
-// If the chosen model is gone (404, or a 400 naming the model), retry
-// once with the next model from the last auto-detection — and keep that
-// model selected, so the next call uses a working model directly.
+// A 400/404 here is often a model problem, but providers (Gemini
+// included) sometimes answer with a bare "HTTP 400" and no message —
+// so treat ANY 400/404 as possibly model-related: first retry with a
+// cached working model, then run a fresh auto-detection (bounded) and
+// retry once with what it finds. If recovery finds nothing, the
+// original error is rethrown — or the detection's more informative
+// failure (e.g. the key itself being rejected) when there is one.
 async function callAiChat(systemPrompt, userContent, temperature) {
   const endpoint = getAiEndpoint();
   const model = getAiModel();
@@ -3271,15 +3282,25 @@ async function callAiChat(systemPrompt, userContent, temperature) {
   try {
     return await callAiChatWithModel(systemPrompt, userContent, temperature, model);
   } catch (error) {
-    const isModelError = error.status === 404 ||
-      (error.status === 400 && /model/i.test(error.message || ""));
-    if (!isModelError) throw error;
+    if (error.status !== 400 && error.status !== 404) throw error;
 
-    const fallback = getCachedAiWorkingModels(endpoint).find((name) => name !== model);
-    if (!fallback) throw error;
+    const cached = getCachedAiWorkingModels(endpoint).find((name) => name !== model);
+    if (cached) {
+      const result = await callAiChatWithModel(systemPrompt, userContent, temperature, cached);
+      setAiModel(cached);
+      saveAiSettings();
+      return result;
+    }
 
-    const result = await callAiChatWithModel(systemPrompt, userContent, temperature, fallback);
-    setAiModel(fallback);
+    const working = await detectWorkingAiModels({ limit: 12 });
+    const detected = (working || []).find((name) => name !== model);
+    if (!detected) {
+      if (aiLastDetectError) throw new Error(aiLastDetectError);
+      throw error;
+    }
+
+    const result = await callAiChatWithModel(systemPrompt, userContent, temperature, detected);
+    setAiModel(detected);
     saveAiSettings();
     return result;
   }
