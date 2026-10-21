@@ -732,7 +732,14 @@ function restoreFormState() {
 
   SECTION_KEYS.forEach((key) => {
     const input = sectionToggleInput(key);
-    if (input) input.checked = !(state.hiddenSections || []).includes(key);
+    if (!input) return;
+    // States saved before this feature have no hiddenSections: keep the old
+    // sections checked, but default the two NEW opt-in sections to unchecked.
+    if (state.hiddenSections) {
+      input.checked = !state.hiddenSections.includes(key);
+    } else {
+      input.checked = key !== "courses" && key !== "certificates";
+    }
   });
   applySectionVisibility();
 
