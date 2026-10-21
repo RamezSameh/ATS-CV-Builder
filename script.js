@@ -4,6 +4,8 @@ const languageSelect = document.getElementById("languageSelect");
 const addExperienceBtn = document.getElementById("addExperienceBtn");
 const addEducationBtn = document.getElementById("addEducationBtn");
 const addProjectBtn = document.getElementById("addProjectBtn");
+const addCourseBtn = document.getElementById("addCourseBtn");
+const addCertificateBtn = document.getElementById("addCertificateBtn");
 const addLanguageBtn = document.getElementById("addLanguageBtn");
 const importPdfBtn = document.getElementById("importPdfBtn");
 const downloadWordBtn = document.getElementById("downloadWordBtn");
@@ -12,6 +14,8 @@ const pdfImportStatus = document.getElementById("pdfImportStatus");
 const experienceItems = document.getElementById("experienceItems");
 const educationItems = document.getElementById("educationItems");
 const projectItems = document.getElementById("projectItems");
+const courseItems = document.getElementById("courseItems");
+const certificateItems = document.getElementById("certificateItems");
 const languageItems = document.getElementById("languageItems");
 const sampleDataBtn = document.getElementById("sampleDataBtn");
 const atsScoreRing = document.getElementById("atsScoreRing");
@@ -65,10 +69,36 @@ const fields = {
   experience: document.getElementById("previewExperience"),
   education: document.getElementById("previewEducation"),
   projects: document.getElementById("previewProjects"),
+  courses: document.getElementById("previewCourses"),
+  certificates: document.getElementById("previewCertificates"),
     languages: document.getElementById("previewLanguages"),
   hardSkills: document.getElementById("previewHardSkills"),
   softSkills: document.getElementById("previewSoftSkills")
 };
+
+// Toggleable CV sections, driven by the checklist at the top of the form.
+// An unchecked section is hidden from the form, the preview, print and Word
+// export — not even its title is rendered.
+const SECTION_KEYS = ["summary", "experience", "education", "projects", "courses", "certificates", "skills", "languages"];
+
+function sectionToggleInput(key) {
+  return form.querySelector(`[data-section-toggle="${key}"]`);
+}
+
+function isSectionChecked(key) {
+  const input = sectionToggleInput(key);
+  return !input || input.checked;
+}
+
+function applySectionVisibility() {
+  SECTION_KEYS.forEach((key) => {
+    const checked = isSectionChecked(key);
+    const formSection = form.querySelector(`[data-form-section="${key}"]`);
+    const previewSection = document.querySelector(`[data-preview-section="${key}"]`);
+    if (formSection) formSection.hidden = !checked;
+    if (previewSection) previewSection.hidden = !checked;
+  });
+}
 
 const i18n = {
   ar: {
@@ -100,6 +130,26 @@ const i18n = {
       languagesSection: "اللغات",
       languagesHint: "أضف اللغات التي تتقنها مع تحديد المستوى.",
       addLanguageBtn: "+ إضافة لغة",
+      sectionsChecklistTitle: "أقسام السيرة الذاتية",
+      sectionsChecklistHint: "علّم على الأقسام اللي عايزها تظهر في السيرة — القسم اللي مش متعلم مش هيظهر خالص، ولا حتى عنوانه.",
+      coursesSection: "الكورسات",
+      coursesHint: "أضف الكورسات اللي خلصتها مع الجهة المقدمة وتاريخها.",
+      addCourseBtn: "+ إضافة كورس",
+      courseNameLabel: "اسم الكورس",
+      courseProviderLabel: "الجهة المقدمة",
+      courseDateLabel: "التاريخ",
+      courseDetailsLabel: "تفاصيل إضافية (كل سطر بند)",
+      courseEntryTitle: "كورس",
+      emptyCourses: "أضف كورساتك من النموذج لتظهر هنا.",
+      certificatesSection: "الشهادات",
+      certificatesHint: "أضف شهاداتك المعتمدة مع الجهة المانحة وتاريخ الحصول عليها.",
+      addCertificateBtn: "+ إضافة شهادة",
+      certNameLabel: "اسم الشهادة",
+      certIssuerLabel: "الجهة المانحة",
+      certDateLabel: "تاريخ الحصول",
+      certDetailsLabel: "تفاصيل إضافية (كل سطر بند)",
+      certEntryTitle: "شهادة",
+      emptyCertificates: "أضف شهاداتك من النموذج لتظهر هنا.",
       skillsSection: "المهارات",
       hardSkillsLabel: "المهارات التقنية (Hard Skills)",
       softSkillsLabel: "المهارات الشخصية (Soft Skills)",
@@ -215,7 +265,15 @@ const i18n = {
       projectDescPlaceholder: "مثال: مولّد سيرة ذاتية يدعم العربية والإنجليزية ومتوافق مع ATS",
       projectGithubPlaceholder: "https://github.com/username/repository",
       langNamePlaceholder: "مثال: الإنجليزية",
-      langLevelPlaceholder: "مثال: ممتاز / طلق / B2"
+      langLevelPlaceholder: "مثال: ممتاز / طلق / B2",
+      courseNamePlaceholder: "مثال: CS50",
+      courseProviderPlaceholder: "مثال: Harvard / Coursera",
+      courseDatePlaceholder: "مثال: 2024",
+      courseDetailsPlaceholder: "مثال: أساسيات البرمجة وهياكل البيانات",
+      certNamePlaceholder: "مثال: AWS Certified Cloud Practitioner",
+      certIssuerPlaceholder: "مثال: Amazon Web Services",
+      certDatePlaceholder: "مثال: 2025",
+      certDetailsPlaceholder: "مثال: رقم الشهادة أو رابط التحقق"
     },
     defaults: {
       fullName: "اسمك الكامل",
@@ -286,6 +344,26 @@ const i18n = {
       languagesSection: "Languages",
       languagesHint: "Add languages you speak and your proficiency level.",
       addLanguageBtn: "+ Add Language",
+      sectionsChecklistTitle: "CV Sections",
+      sectionsChecklistHint: "Check the sections you want in your CV — an unchecked section will not appear at all, not even its title.",
+      coursesSection: "Courses",
+      coursesHint: "Add completed courses with the provider and date.",
+      addCourseBtn: "+ Add Course",
+      courseNameLabel: "Course Name",
+      courseProviderLabel: "Provider",
+      courseDateLabel: "Date",
+      courseDetailsLabel: "Additional Details (one per line)",
+      courseEntryTitle: "Course",
+      emptyCourses: "Add your courses from the form.",
+      certificatesSection: "Certificates",
+      certificatesHint: "Add your certificates with the issuer and date earned.",
+      addCertificateBtn: "+ Add Certificate",
+      certNameLabel: "Certificate Name",
+      certIssuerLabel: "Issuer",
+      certDateLabel: "Date Earned",
+      certDetailsLabel: "Additional Details (one per line)",
+      certEntryTitle: "Certificate",
+      emptyCertificates: "Add your certificates from the form.",
       skillsSection: "Skills",
       hardSkillsLabel: "Hard Skills",
       softSkillsLabel: "Soft Skills",
@@ -401,7 +479,15 @@ const i18n = {
       projectDescPlaceholder: "Example: A bilingual ATS-friendly CV generator with live preview",
       projectGithubPlaceholder: "https://github.com/username/repository",
       langNamePlaceholder: "Example: English",
-      langLevelPlaceholder: "Example: Native / Fluent / B2"
+      langLevelPlaceholder: "Example: Native / Fluent / B2",
+      courseNamePlaceholder: "Example: CS50",
+      courseProviderPlaceholder: "Example: Harvard / Coursera",
+      courseDatePlaceholder: "Example: 2024",
+      courseDetailsPlaceholder: "Example: Programming basics and data structures",
+      certNamePlaceholder: "Example: AWS Certified Cloud Practitioner",
+      certIssuerPlaceholder: "Example: Amazon Web Services",
+      certDatePlaceholder: "Example: 2025",
+      certDetailsPlaceholder: "Example: Credential ID or verification link"
     },
     defaults: {
       fullName: "Your Full Name",
@@ -577,9 +663,12 @@ function collectFormState() {
       hardSkills: get("hardSkills"),
       softSkills: get("softSkills")
     },
+    hiddenSections: SECTION_KEYS.filter((key) => !isSectionChecked(key)),
     experience: collectExperienceEntries(),
     education: collectEducationEntries(),
     projects: collectProjectEntries(),
+    courses: collectCourseEntries(),
+    certificates: collectCertificationEntries(),
     languages: collectLanguageEntries()
   };
 }
@@ -625,17 +714,27 @@ function restoreFormState() {
   experienceItems.innerHTML = "";
   educationItems.innerHTML = "";
   projectItems.innerHTML = "";
+  courseItems.innerHTML = "";
+  certificateItems.innerHTML = "";
   languageItems.innerHTML = "";
 
   (state.experience || []).forEach((entry) => createExperienceItem(entry));
   (state.education || []).forEach((entry) => createEducationItem(entry));
   (state.projects || []).forEach((entry) => createProjectItem(entry));
+  (state.courses || []).forEach((entry) => createCourseItem(entry));
+  (state.certificates || []).forEach((entry) => createCertificateItem(entry));
   (state.languages || []).forEach((entry) => createLanguageItem(entry));
 
   if (!experienceItems.children.length) createExperienceItem();
   if (!educationItems.children.length) createEducationItem();
   if (!projectItems.children.length) createProjectItem();
   if (!languageItems.children.length) createLanguageItem();
+
+  SECTION_KEYS.forEach((key) => {
+    const input = sectionToggleInput(key);
+    if (input) input.checked = !(state.hiddenSections || []).includes(key);
+  });
+  applySectionVisibility();
 
   return true;
 }
@@ -647,19 +746,33 @@ function computeAtsScore() {
 
   checks.push({ key: "atsCheckName", passed: get("fullName").length >= 3 });
   checks.push({ key: "atsCheckJobTitle", passed: get("jobTitle").length >= 2 });
-  checks.push({ key: "atsCheckSummary", passed: get("summary").length >= 40 });
+
+  // Section checks only apply to sections the user kept checked: an
+  // unchecked section is a deliberate choice, not a gap in the CV.
+  if (isSectionChecked("summary")) {
+    checks.push({ key: "atsCheckSummary", passed: get("summary").length >= 40 });
+  }
+
   checks.push({ key: "atsCheckEmail", passed: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(get("email")) });
   checks.push({ key: "atsCheckPhone", passed: get("phone").replace(/\D/g, "").length >= 7 });
 
-  const experience = collectExperienceEntries();
-  checks.push({ key: "atsCheckExperience", passed: experience.length > 0 });
-  checks.push({
-    key: "atsCheckAchievements",
-    passed: experience.some((entry) => /\d/.test(entry.achievements || ""))
-  });
+  if (isSectionChecked("experience")) {
+    const experience = collectExperienceEntries();
+    checks.push({ key: "atsCheckExperience", passed: experience.length > 0 });
+    checks.push({
+      key: "atsCheckAchievements",
+      passed: experience.some((entry) => /\d/.test(entry.achievements || ""))
+    });
+  }
 
-  checks.push({ key: "atsCheckSkills", passed: linesFromValue(get("hardSkills")).length >= 5 });
-  checks.push({ key: "atsCheckEducation", passed: collectEducationEntries().length > 0 });
+  if (isSectionChecked("skills")) {
+    checks.push({ key: "atsCheckSkills", passed: linesFromValue(get("hardSkills")).length >= 5 });
+  }
+
+  if (isSectionChecked("education")) {
+    checks.push({ key: "atsCheckEducation", passed: collectEducationEntries().length > 0 });
+  }
+
   checks.push({ key: "atsCheckWebsite", passed: get("website").length > 3 });
 
   const passed = checks.filter((check) => check.passed).length;
@@ -726,6 +839,8 @@ function fillSampleData() {
   experienceItems.innerHTML = "";
   educationItems.innerHTML = "";
   projectItems.innerHTML = "";
+  courseItems.innerHTML = "";
+  certificateItems.innerHTML = "";
   languageItems.innerHTML = "";
 
   sample.experience.forEach((entry) => createExperienceItem(entry));
@@ -914,12 +1029,94 @@ function createLanguageItem(values = {}) {
   languageItems.appendChild(card);
 }
 
+function createCourseItem(values = {}) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  card.innerHTML = `
+    <div class="entry-card-head">
+      <p class="entry-title"></p>
+      <button type="button" class="remove-entry-btn" data-entry-type="course" data-i18n="removeBtn">حذف</button>
+    </div>
+
+    <div class="entry-grid">
+      <label>
+        <span data-i18n="courseNameLabel">اسم الكورس</span>
+        <input type="text" data-field="name" data-i18n-placeholder="courseNamePlaceholder">
+      </label>
+
+      <label>
+        <span data-i18n="courseProviderLabel">الجهة المقدمة</span>
+        <input type="text" data-field="provider" data-i18n-placeholder="courseProviderPlaceholder">
+      </label>
+
+      <label>
+        <span data-i18n="courseDateLabel">التاريخ</span>
+        <input type="text" data-field="date" data-i18n-placeholder="courseDatePlaceholder">
+      </label>
+
+      <label class="full-width">
+        <span data-i18n="courseDetailsLabel">تفاصيل إضافية (كل سطر بند)</span>
+        <textarea rows="3" data-field="details" data-i18n-placeholder="courseDetailsPlaceholder"></textarea>
+      </label>
+    </div>
+  `;
+
+  card.querySelector('[data-field="name"]').value = values.name || "";
+  card.querySelector('[data-field="provider"]').value = values.provider || "";
+  card.querySelector('[data-field="date"]').value = values.date || "";
+  card.querySelector('[data-field="details"]').value = values.details || "";
+
+  courseItems.appendChild(card);
+}
+
+function createCertificateItem(values = {}) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  card.innerHTML = `
+    <div class="entry-card-head">
+      <p class="entry-title"></p>
+      <button type="button" class="remove-entry-btn" data-entry-type="certificate" data-i18n="removeBtn">حذف</button>
+    </div>
+
+    <div class="entry-grid">
+      <label>
+        <span data-i18n="certNameLabel">اسم الشهادة</span>
+        <input type="text" data-field="name" data-i18n-placeholder="certNamePlaceholder">
+      </label>
+
+      <label>
+        <span data-i18n="certIssuerLabel">الجهة المانحة</span>
+        <input type="text" data-field="issuer" data-i18n-placeholder="certIssuerPlaceholder">
+      </label>
+
+      <label>
+        <span data-i18n="certDateLabel">تاريخ الحصول</span>
+        <input type="text" data-field="date" data-i18n-placeholder="certDatePlaceholder">
+      </label>
+
+      <label class="full-width">
+        <span data-i18n="certDetailsLabel">تفاصيل إضافية (كل سطر بند)</span>
+        <textarea rows="3" data-field="details" data-i18n-placeholder="certDetailsPlaceholder"></textarea>
+      </label>
+    </div>
+  `;
+
+  card.querySelector('[data-field="name"]').value = values.name || "";
+  card.querySelector('[data-field="issuer"]').value = values.issuer || "";
+  card.querySelector('[data-field="date"]').value = values.date || "";
+  card.querySelector('[data-field="details"]').value = values.details || "";
+
+  certificateItems.appendChild(card);
+}
+
 function buildTemplateEntries() {
   const locale = currentLocale();
 
   experienceItems.innerHTML = "";
   educationItems.innerHTML = "";
   projectItems.innerHTML = "";
+  courseItems.innerHTML = "";
+  certificateItems.innerHTML = "";
   languageItems.innerHTML = "";
 
   locale.templates.experience.forEach((item) => createExperienceItem(item));
@@ -944,6 +1141,14 @@ function setEntryTitles(locale) {
 
   projectItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
     title.textContent = `${locale.strings.projectEntryTitle} ${index + 1}`;
+  });
+
+  courseItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
+    title.textContent = `${locale.strings.courseEntryTitle} ${index + 1}`;
+  });
+
+  certificateItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
+    title.textContent = `${locale.strings.certEntryTitle} ${index + 1}`;
   });
 
   languageItems.querySelectorAll(".entry-card .entry-title").forEach((title, index) => {
@@ -1020,6 +1225,28 @@ function collectLanguageEntries() {
     .map((card) => ({
       name: card.querySelector('[data-field="name"]').value.trim(),
       level: card.querySelector('[data-field="level"]').value.trim()
+    }))
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function collectCourseEntries() {
+  return Array.from(courseItems.querySelectorAll(".entry-card"))
+    .map((card) => ({
+      name: card.querySelector('[data-field="name"]').value.trim(),
+      provider: card.querySelector('[data-field="provider"]').value.trim(),
+      date: card.querySelector('[data-field="date"]').value.trim(),
+      details: card.querySelector('[data-field="details"]').value.trim()
+    }))
+    .filter((item) => Object.values(item).some(Boolean));
+}
+
+function collectCertificationEntries() {
+  return Array.from(certificateItems.querySelectorAll(".entry-card"))
+    .map((card) => ({
+      name: card.querySelector('[data-field="name"]').value.trim(),
+      issuer: card.querySelector('[data-field="issuer"]').value.trim(),
+      date: card.querySelector('[data-field="date"]').value.trim(),
+      details: card.querySelector('[data-field="details"]').value.trim()
     }))
     .filter((item) => Object.values(item).some(Boolean));
 }
@@ -1286,6 +1513,77 @@ function renderLanguages(entries, locale) {
   fields.languages.appendChild(list);
 }
 
+function renderSimpleEntryList(target, entries, locale, emptyKey, nameKey) {
+  target.innerHTML = "";
+
+  if (!entries.length) {
+    const p = document.createElement("p");
+    p.className = "preview-empty";
+    p.textContent = locale.strings[emptyKey];
+    target.appendChild(p);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "preview-entry-list";
+
+  entries.forEach((entry) => {
+    const article = document.createElement("article");
+    article.className = "preview-entry";
+
+    const heading = document.createElement("div");
+    heading.className = "entry-head";
+
+    const name = document.createElement("p");
+    name.className = "entry-role";
+    name.textContent = entry.name || locale.strings[nameKey];
+
+    const date = document.createElement("p");
+    date.className = "entry-date";
+    date.textContent = entry.date;
+
+    heading.appendChild(name);
+    heading.appendChild(date);
+    article.appendChild(heading);
+
+    const orgLine = [entry.provider || entry.issuer, entry.location].filter(Boolean).join(" | ");
+
+    if (orgLine) {
+      const org = document.createElement("p");
+      org.className = "entry-subline";
+      org.textContent = orgLine;
+      article.appendChild(org);
+    }
+
+    const details = linesFromValue(entry.details);
+
+    if (details.length) {
+      const ul = document.createElement("ul");
+      ul.className = "entry-detail-list";
+
+      details.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+
+      article.appendChild(ul);
+    }
+
+    list.appendChild(article);
+  });
+
+  target.appendChild(list);
+}
+
+function renderCourses(entries, locale) {
+  renderSimpleEntryList(fields.courses, entries, locale, "emptyCourses", "courseNameLabel");
+}
+
+function renderCertificates(entries, locale) {
+  renderSimpleEntryList(fields.certificates, entries, locale, "emptyCertificates", "certNameLabel");
+}
+
 function updatePreview() {
   const locale = currentLocale();
   const data = new FormData(form);
@@ -1302,11 +1600,35 @@ function updatePreview() {
   renderExperience(collectExperienceEntries(), locale);
   renderEducation(collectEducationEntries(), locale);
   renderProjects(collectProjectEntries(), locale);
+  renderCourses(collectCourseEntries(), locale);
+  renderCertificates(collectCertificationEntries(), locale);
   renderSimpleList(fields.hardSkills, (data.get("hardSkills") || "").toString(), locale);
   renderSimpleList(fields.softSkills, (data.get("softSkills") || "").toString(), locale);
   renderLanguages(collectLanguageEntries(), locale);
+  markEmptyPreviewSections(data);
   renderAtsScore();
   scheduleSave();
+}
+
+// Marks preview sections that have no real content, so print CSS can hide
+// them entirely — a section title must never print with nothing under it.
+function markEmptyPreviewSections(data) {
+  const get = (key) => (data.get(key) || "").toString().trim();
+  const emptyByKey = {
+    summary: !get("summary"),
+    experience: collectExperienceEntries().length === 0,
+    education: collectEducationEntries().length === 0,
+    projects: collectProjectEntries().length === 0,
+    courses: collectCourseEntries().length === 0,
+    certificates: collectCertificationEntries().length === 0,
+    skills: linesFromValue(get("hardSkills")).length === 0 && linesFromValue(get("softSkills")).length === 0,
+    languages: collectLanguageEntries().length === 0
+  };
+
+  SECTION_KEYS.forEach((key) => {
+    const section = document.querySelector(`[data-preview-section="${key}"]`);
+    if (section) section.classList.toggle("is-empty", !!emptyByKey[key]);
+  });
 }
 
 function applyLanguage(language) {
@@ -1949,6 +2271,16 @@ function addEmptyProject() {
   applyLanguage(languageSelect.value);
 }
 
+function addEmptyCourse() {
+  createCourseItem();
+  applyLanguage(languageSelect.value);
+}
+
+function addEmptyCertificate() {
+  createCertificateItem();
+  applyLanguage(languageSelect.value);
+}
+
 function addEmptyLanguage() {
   createLanguageItem();
   applyLanguage(languageSelect.value);
@@ -1957,6 +2289,8 @@ function addEmptyLanguage() {
 addExperienceBtn.addEventListener("click", addEmptyExperience);
 addEducationBtn.addEventListener("click", addEmptyEducation);
 addProjectBtn.addEventListener("click", addEmptyProject);
+addCourseBtn.addEventListener("click", addEmptyCourse);
+addCertificateBtn.addEventListener("click", addEmptyCertificate);
 addLanguageBtn.addEventListener("click", addEmptyLanguage);
 
 if (sampleDataBtn) {
@@ -1989,6 +2323,8 @@ form.addEventListener("click", (event) => {
     createProjectItem();
   }
 
+  // Courses/certificates are opt-in: removing the last entry leaves the
+  // list empty on purpose (no forced blank card).
   if (type === "language" && languageItems.children.length === 0) {
     createLanguageItem();
   }
@@ -1996,11 +2332,35 @@ form.addEventListener("click", (event) => {
   applyLanguage(languageSelect.value);
 });
 
+form.addEventListener("change", (event) => {
+  const toggle = event.target.closest("[data-section-toggle]");
+
+  if (!toggle) {
+    return;
+  }
+
+  const key = toggle.dataset.sectionToggle;
+
+  // First time a new opt-in section is checked, offer a blank entry.
+  if (toggle.checked && key === "courses" && courseItems.children.length === 0) {
+    createCourseItem();
+  }
+
+  if (toggle.checked && key === "certificates" && certificateItems.children.length === 0) {
+    createCertificateItem();
+  }
+
+  applySectionVisibility();
+  updatePreview();
+});
+
 form.addEventListener("input", updatePreview);
 
 form.addEventListener("reset", () => {
   window.setTimeout(() => {
     buildTemplateEntries();
+    // Native reset restores the checklist defaults; sync visibility with them.
+    applySectionVisibility();
     applyLanguage(languageSelect.value);
   }, 0);
 });
@@ -2458,6 +2818,7 @@ async function exportToWord() {
   const experience = collectExperienceEntries();
   const education = collectEducationEntries();
   const projects = collectProjectEntries();
+  const courses = collectCourseEntries();
   const languages = collectLanguageEntries();
   const certifications = collectCertificationEntries();
 
@@ -2490,14 +2851,14 @@ async function exportToWord() {
         </div>
       </div>
 
-      ${summary ? `
+      ${isSectionChecked("summary") && summary ? `
         <div class="section">
           <div class="section-title">${locale.strings.summarySection}</div>
           <p>${summary}</p>
         </div>
       ` : ''}
 
-      ${experience.length ? `
+      ${isSectionChecked("experience") && experience.length ? `
         <div class="section">
           <div class="section-title">${locale.strings.experienceSection}</div>
           ${experience.map(exp => `
@@ -2515,7 +2876,7 @@ async function exportToWord() {
         </div>
       ` : ''}
 
-      ${education.length ? `
+      ${isSectionChecked("education") && education.length ? `
         <div class="section">
           <div class="section-title">${locale.strings.educationSection}</div>
           ${education.map(edu => `
@@ -2533,7 +2894,7 @@ async function exportToWord() {
         </div>
       ` : ''}
 
-      ${projects.length ? `
+      ${isSectionChecked("projects") && projects.length ? `
         <div class="section">
           <div class="section-title">${locale.strings.projectsSection}</div>
           ${projects.map(proj => `
@@ -2546,7 +2907,43 @@ async function exportToWord() {
         </div>
       ` : ''}
 
-      ${hardSkills.length ? `
+      ${isSectionChecked("courses") && courses.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.coursesSection}</div>
+          ${courses.map(course => `
+            <div class="entry">
+              <div class="entry-head">
+                <span>${course.name}</span>
+                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${course.date}</span>
+              </div>
+              <div class="entry-sub">${course.provider}</div>
+              <ul>
+                ${linesFromValue(course.details).map(d => `<li>${d}</li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${isSectionChecked("certificates") && certifications.length ? `
+        <div class="section">
+          <div class="section-title">${locale.strings.certificatesSection}</div>
+          ${certifications.map(cert => `
+            <div class="entry">
+              <div class="entry-head">
+                <span>${cert.name}</span>
+                <span style="float: ${locale.dir === 'rtl' ? 'left' : 'right'}">${cert.date}</span>
+              </div>
+              <div class="entry-sub">${cert.issuer}</div>
+              <ul>
+                ${linesFromValue(cert.details).map(d => `<li>${d}</li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${isSectionChecked("skills") && hardSkills.length ? `
         <div class="section">
           <div class="section-title">Hard Skills</div>
           <ul>
@@ -2555,7 +2952,7 @@ async function exportToWord() {
         </div>
       ` : ''}
 
-      ${softSkills.length ? `
+      ${isSectionChecked("skills") && softSkills.length ? `
         <div class="section">
           <div class="section-title">Soft Skills</div>
           <ul>
@@ -2564,7 +2961,7 @@ async function exportToWord() {
         </div>
       ` : ''}
 
-      ${languages.length ? `
+      ${isSectionChecked("languages") && languages.length ? `
         <div class="section">
           <div class="section-title">${locale.strings.languagesSection}</div>
           <ul>
@@ -2595,3 +2992,4 @@ if (!restoreFormState()) {
 }
 restorePdfRawText();
 applyLanguage(languageSelect.value);
+applySectionVisibility();

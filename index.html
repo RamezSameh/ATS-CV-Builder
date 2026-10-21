@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <div class="page-shell">
@@ -30,6 +30,21 @@
 
       <form id="cvForm" class="cv-form" autocomplete="on">
         <section>
+          <h2 data-i18n="sectionsChecklistTitle">أقسام السيرة الذاتية</h2>
+          <p class="section-hint" data-i18n="sectionsChecklistHint">علّم على الأقسام اللي عايزها تظهر في السيرة — القسم اللي مش متعلم مش هيظهر خالص، ولا حتى عنوانه.</p>
+          <div class="sections-checklist">
+            <label class="check-item"><input type="checkbox" data-section-toggle="summary" checked> <span data-i18n="summarySection">الملف الشخصي</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="experience" checked> <span data-i18n="experienceSection">الخبرات</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="education" checked> <span data-i18n="educationSection">التعليم</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="projects" checked> <span data-i18n="projectsSection">المشروعات</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="courses"> <span data-i18n="coursesSection">الكورسات</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="certificates"> <span data-i18n="certificatesSection">الشهادات</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="skills" checked> <span data-i18n="skillsSection">المهارات</span></label>
+            <label class="check-item"><input type="checkbox" data-section-toggle="languages" checked> <span data-i18n="languagesSection">اللغات</span></label>
+          </div>
+        </section>
+
+        <section>
           <h2 data-i18n="basicInfoSection">البيانات الأساسية</h2>
 
           <label>
@@ -41,6 +56,10 @@
             <span data-i18n="jobTitleLabel">المسمى الوظيفي</span>
             <input type="text" name="jobTitle" value="" data-i18n-placeholder="jobTitlePlaceholder">
           </label>
+        </section>
+
+        <section data-form-section="summary">
+          <h2 data-i18n="summarySection">الملف الشخصي</h2>
 
           <label>
             <span data-i18n="summaryLabel">النبذة المختصرة</span>
@@ -72,35 +91,49 @@
           </label>
         </section>
 
-        <section>
+        <section data-form-section="experience">
           <h2 data-i18n="experienceSection">الخبرات</h2>
           <p class="section-hint" data-i18n="experienceHint">أضف كل خبرة بشكل منفصل مع إنجازات قابلة للقياس.</p>
           <div id="experienceItems" class="entry-list"></div>
           <button type="button" id="addExperienceBtn" class="ghost-btn" data-i18n="addExperienceBtn">+ إضافة خبرة</button>
         </section>
 
-        <section>
+        <section data-form-section="education">
           <h2 data-i18n="educationSection">التعليم</h2>
           <p class="section-hint" data-i18n="educationHint">أضف الدرجة العلمية والجامعة وتفاصيل إضافية مثل المعدل أو مشروع التخرج.</p>
           <div id="educationItems" class="entry-list"></div>
           <button type="button" id="addEducationBtn" class="ghost-btn" data-i18n="addEducationBtn">+ إضافة مؤهل</button>
         </section>
 
-        <section>
+        <section data-form-section="projects">
           <h2 data-i18n="projectsSection">المشروعات</h2>
           <p class="section-hint" data-i18n="projectsHint">أضف مشاريعك المهمة مع رابط GitHub لكل مشروع.</p>
           <div id="projectItems" class="entry-list"></div>
           <button type="button" id="addProjectBtn" class="ghost-btn" data-i18n="addProjectBtn">+ إضافة مشروع</button>
         </section>
 
-        <section>
+        <section data-form-section="courses">
+          <h2 data-i18n="coursesSection">الكورسات</h2>
+          <p class="section-hint" data-i18n="coursesHint">أضف الكورسات اللي خلصتها مع الجهة المقدمة وتاريخها.</p>
+          <div id="courseItems" class="entry-list"></div>
+          <button type="button" id="addCourseBtn" class="ghost-btn" data-i18n="addCourseBtn">+ إضافة كورس</button>
+        </section>
+
+        <section data-form-section="certificates">
+          <h2 data-i18n="certificatesSection">الشهادات</h2>
+          <p class="section-hint" data-i18n="certificatesHint">أضف شهاداتك المعتمدة مع الجهة المانحة وتاريخ الحصول عليها.</p>
+          <div id="certificateItems" class="entry-list"></div>
+          <button type="button" id="addCertificateBtn" class="ghost-btn" data-i18n="addCertificateBtn">+ إضافة شهادة</button>
+        </section>
+
+        <section data-form-section="languages">
           <h2 data-i18n="languagesSection">اللغات</h2>
           <p class="section-hint" data-i18n="languagesHint">أضف اللغات التي تتقنها مع تحديد المستوى.</p>
           <div id="languageItems" class="entry-list"></div>
           <button type="button" id="addLanguageBtn" class="ghost-btn" data-i18n="addLanguageBtn">+ إضافة لغة</button>
         </section>
 
-        <section>
+        <section data-form-section="skills">
           <h2 data-i18n="skillsSection">المهارات</h2>
           <p class="section-hint" data-i18n="skillsHint">كل سطر مهارة مستقلة</p>
 
@@ -185,27 +218,37 @@
           </div>
         </header>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="summary">
           <h2 data-i18n="summarySection">الملف الشخصي</h2>
           <p id="previewSummary">مطور واجهات أمامية مهتم ببناء صفحات سريعة وواضحة وسهلة الاستخدام مع تركيز على تجربة المستخدم.</p>
         </section>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="experience">
           <h2 data-i18n="experienceSection">الخبرات</h2>
           <div id="previewExperience"></div>
         </section>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="education">
           <h2 data-i18n="educationSection">التعليم</h2>
           <div id="previewEducation"></div>
         </section>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="projects">
           <h2 data-i18n="projectsSection">المشروعات</h2>
           <div id="previewProjects"></div>
         </section>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="courses">
+          <h2 data-i18n="coursesSection">الكورسات</h2>
+          <div id="previewCourses"></div>
+        </section>
+
+        <section class="cv-section" data-preview-section="certificates">
+          <h2 data-i18n="certificatesSection">الشهادات</h2>
+          <div id="previewCertificates"></div>
+        </section>
+
+        <section class="cv-section" data-preview-section="skills">
           <h2 data-i18n="skillsSection">المهارات</h2>
           <div class="skills-grid">
             <div>
@@ -219,7 +262,7 @@
           </div>
         </section>
 
-        <section class="cv-section">
+        <section class="cv-section" data-preview-section="languages">
           <h2 data-i18n="languagesSection">اللغات</h2>
           <div id="previewLanguages"></div>
         </section>
@@ -227,6 +270,6 @@
     </main>
   </div>
 
-  <script src="script.js?v=10"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>

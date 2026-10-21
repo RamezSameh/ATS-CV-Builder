@@ -201,6 +201,31 @@ textarea:focus,
   background: var(--surface);
 }
 
+.sections-checklist {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.check-item input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 .entry-card-head {
   display: flex;
   align-items: center;
@@ -565,6 +590,11 @@ html[dir="ltr"] .entry-detail-list {
   .cv-section {
     padding-top: 25px;
     animation: none;
+  }
+
+  /* Never print a section title with nothing under it. */
+  .cv-section.is-empty {
+    display: none;
   }
 
   .cv-preview > .cv-section + .cv-section {
