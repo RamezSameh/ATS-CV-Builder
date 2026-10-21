@@ -182,10 +182,37 @@ const i18n = {
       aiStatusNoText: "استورد ملف PDF أولًا حتى يتوفر النص الخام للتحسين.",
       aiStatusWorking: "جاري تحسين البيانات بالذكاء الاصطناعي...",
       aiStatusDone: "تم تحسين البيانات بنجاح. راجع الحقول ثم اطبع.",
+      aiStatusReviewReady: "تم إعداد النتيجة — راجع التغييرات وطبق اللي يعجبك.",
       aiStatusError: "فشل الاتصال بخدمة الذكاء الاصطناعي. تحقق من المفتاح والرابط واسم الموديل.",
       aiTestBtn: "اختبار الاتصال",
       aiStatusTesting: "جاري اختبار الاتصال...",
       aiStatusTestOk: "الاتصال ناجح. الموديلات المتاحة:",
+      aiModelsBtn: "تحديث قائمة الموديلات",
+      aiStatusModelsLoading: "جاري تحميل قائمة الموديلات...",
+      aiStatusModelsOk: "تم تحميل قائمة الموديلات — اختار من الاقتراحات أو اكتب اسمًا مخصصًا.",
+      aiStatusModelsEmpty: "لم يتم العثور على موديلات متاحة.",
+      aiImproveBtn: "تحسين الصياغة",
+      aiImproveHint: "تحسين الصياغة بياخد بياناتك الحالية ويقوّي النبذة والإنجازات من غير ما يخترع أرقام أو بيانات — ومش محتاج ملف PDF.",
+      aiStatusNoData: "اكتب بيانات في الفورم أولًا.",
+      aiKeywordsTitle: "كلمات ATS مقترحة",
+      aiPasteLabel: "أو الصق نص السيرة هنا",
+      aiPastePlaceholder: "الصق نص السيرة الذاتية كما هو...",
+      aiPasteExtractBtn: "استخراج من النص الملصوق",
+      aiStatusNoPaste: "الصق نص السيرة أولًا.",
+      aiShowKey: "إظهار",
+      aiHideKey: "إخفاء",
+      aiReviewTitle: "راجع التغييرات قبل التطبيق",
+      aiReviewHint: "علّم على الأقسام اللي عايز تطبقها — القسم اللي مش متعلم مش هيتغير.",
+      aiApplySelectedBtn: "تطبيق المختار",
+      aiCancelReviewBtn: "إلغاء",
+      aiUndoBtn: "تراجع عن آخر تحسين",
+      aiStatusApplied: "تم تطبيق الأقسام المختارة.",
+      aiStatusUndone: "تم التراجع — رجعت البيانات اللي قبل التحسين.",
+      aiReviewCurrent: "الحالي",
+      aiReviewNew: "الجديد",
+      aiReviewNoChange: "بدون تغيير",
+      aiReviewEmpty: "لا يوجد",
+      aiReviewClearWarning: "تحذير: التطبيق هيمسح البيانات الحالية في القسم ده",
       printBtn: "طباعة / حفظ PDF",
       downloadWordBtn: "تحميل Word",
       resetBtn: "إعادة ضبط",
@@ -396,10 +423,37 @@ const i18n = {
       aiStatusNoText: "Import a PDF first so raw text is available for refinement.",
       aiStatusWorking: "Refining data with AI...",
       aiStatusDone: "Data refined successfully. Review the fields, then print.",
+      aiStatusReviewReady: "Result ready — review the changes and apply what you like.",
       aiStatusError: "Failed to reach the AI service. Check the key, endpoint, and model name.",
       aiTestBtn: "Test connection",
       aiStatusTesting: "Testing connection...",
       aiStatusTestOk: "Connection OK. Available models:",
+      aiModelsBtn: "Refresh model list",
+      aiStatusModelsLoading: "Loading model list...",
+      aiStatusModelsOk: "Model list loaded — pick from the suggestions or type a custom name.",
+      aiStatusModelsEmpty: "No models found.",
+      aiImproveBtn: "Improve wording",
+      aiImproveHint: "Improve wording takes your current data and strengthens the summary and achievements without inventing numbers or facts — no PDF needed.",
+      aiStatusNoData: "Fill in some form data first.",
+      aiKeywordsTitle: "Suggested ATS keywords",
+      aiPasteLabel: "Or paste the CV text here",
+      aiPastePlaceholder: "Paste the CV text as-is...",
+      aiPasteExtractBtn: "Extract from pasted text",
+      aiStatusNoPaste: "Paste the CV text first.",
+      aiShowKey: "Show",
+      aiHideKey: "Hide",
+      aiReviewTitle: "Review changes before applying",
+      aiReviewHint: "Check the sections you want to apply — unchecked sections stay as they are.",
+      aiApplySelectedBtn: "Apply selected",
+      aiCancelReviewBtn: "Discard",
+      aiUndoBtn: "Undo last AI change",
+      aiStatusApplied: "Selected sections applied.",
+      aiStatusUndone: "Undone — previous data restored.",
+      aiReviewCurrent: "Current",
+      aiReviewNew: "New",
+      aiReviewNoChange: "No change",
+      aiReviewEmpty: "None",
+      aiReviewClearWarning: "Warning: applying will clear the current data in this section",
       printBtn: "Print / Save PDF",
       downloadWordBtn: "Download Word",
       resetBtn: "Reset",
@@ -688,13 +742,15 @@ function scheduleSave() {
   saveTimer = setTimeout(saveFormState, 400);
 }
 
-function restoreFormState() {
-  let state = null;
+function restoreFormState(providedState) {
+  let state = providedState || null;
 
-  try {
-    state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-  } catch (error) {
-    return false;
+  if (!state) {
+    try {
+      state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    } catch (error) {
+      return false;
+    }
   }
 
   if (!state || !state.fields) {
@@ -2244,22 +2300,65 @@ function fillEntriesFromParsedData(container, entries, creator) {
   creator();
 }
 
+// Sections an AI result can change, shown as rows in the review panel.
+const AI_REVIEW_SECTIONS = [
+  { key: "basic", labelKey: "basicInfoSection" },
+  { key: "experience", labelKey: "experienceSection" },
+  { key: "education", labelKey: "educationSection" },
+  { key: "projects", labelKey: "projectsSection" },
+  { key: "courses", labelKey: "coursesSection" },
+  { key: "certificates", labelKey: "certificatesSection" },
+  { key: "skills", labelKey: "skillsSection" },
+  { key: "languages", labelKey: "languagesSection" }
+];
+
+function applyAiSection(key, parsed) {
+  switch (key) {
+    case "basic":
+      setFormValue("fullName", parsed.fullName);
+      setFormValue("jobTitle", parsed.jobTitle);
+      setFormValue("summary", parsed.summary);
+      setFormValue("email", parsed.email);
+      setFormValue("phone", parsed.phone);
+      setFormValue("address", parsed.address);
+      setFormValue("website", parsed.website);
+      break;
+    case "experience":
+      fillEntriesFromParsedData(experienceItems, parsed.experience || [], createExperienceItem);
+      break;
+    case "education":
+      fillEntriesFromParsedData(educationItems, parsed.education || [], createEducationItem);
+      break;
+    case "projects":
+      fillEntriesFromParsedData(projectItems, parsed.projects || [], createProjectItem);
+      break;
+    case "courses":
+      fillEntriesFromParsedData(courseItems, parsed.courses || [], createCourseItem);
+      // If the AI found courses, make sure the section is visible in the CV.
+      if ((parsed.courses || []).length && sectionToggleInput("courses")) {
+        sectionToggleInput("courses").checked = true;
+        applySectionVisibility();
+      }
+      break;
+    case "certificates":
+      fillEntriesFromParsedData(certificateItems, parsed.certificates || [], createCertificateItem);
+      if ((parsed.certificates || []).length && sectionToggleInput("certificates")) {
+        sectionToggleInput("certificates").checked = true;
+        applySectionVisibility();
+      }
+      break;
+    case "skills":
+      setFormValue("hardSkills", (parsed.hardSkills || parsed.skills || []).join("\n"));
+      setFormValue("softSkills", (parsed.softSkills || []).join("\n"));
+      break;
+    case "languages":
+      fillEntriesFromParsedData(languageItems, parsed.languages || [], createLanguageItem);
+      break;
+  }
+}
+
 function fillFormFromParsedCv(parsed) {
-  setFormValue("fullName", parsed.fullName);
-  setFormValue("jobTitle", parsed.jobTitle);
-  setFormValue("summary", parsed.summary);
-  setFormValue("email", parsed.email);
-  setFormValue("phone", parsed.phone);
-  setFormValue("address", parsed.address);
-  setFormValue("website", parsed.website);
-  setFormValue("hardSkills", (parsed.hardSkills || parsed.skills || []).join("\n"));
-  setFormValue("softSkills", (parsed.softSkills || []).join("\n"));
-
-  fillEntriesFromParsedData(experienceItems, parsed.experience || [], createExperienceItem);
-  fillEntriesFromParsedData(educationItems, parsed.education || [], createEducationItem);
-  fillEntriesFromParsedData(projectItems, parsed.projects || [], createProjectItem);
-  fillEntriesFromParsedData(languageItems, parsed.languages || [], createLanguageItem);
-
+  AI_REVIEW_SECTIONS.forEach(({ key }) => applyAiSection(key, parsed));
   applyLanguage(languageSelect.value);
 }
 
@@ -2374,6 +2473,7 @@ form.addEventListener("reset", () => {
 
 languageSelect.addEventListener("change", (event) => {
   applyLanguage(event.target.value);
+  syncAiKeyButton();
 });
 
 importPdfBtn.addEventListener("click", async () => {
@@ -2438,6 +2538,7 @@ const aiApiKeyInput = document.getElementById("aiApiKeyInput");
 const aiEndpointInput = document.getElementById("aiEndpointInput");
 const aiModelInput = document.getElementById("aiModelInput");
 const aiRefineBtn = document.getElementById("aiRefineBtn");
+const aiImproveBtn = document.getElementById("aiImproveBtn");
 const aiTestBtn = document.getElementById("aiTestBtn");
 const aiProviderSelect = document.getElementById("aiProviderSelect");
 
@@ -2476,6 +2577,8 @@ function applyAiPreset(name) {
   }
 
   if (aiProviderSelect) aiProviderSelect.value = preset ? name : "custom";
+  // Suggestions belong to the previous provider; clear until re-fetched.
+  populateModelDatalist([]);
   saveAiSettings();
 }
 
@@ -2484,7 +2587,20 @@ const AI_EXTRACT_SYSTEM_PROMPT = [
   "Extract structured CV data from the raw text provided by the user.",
   "Fix obvious OCR typos and broken line breaks, but never invent facts that are not present in the text.",
   "Return ONLY a valid JSON object with exactly these keys:",
-  '{ "fullName": "", "jobTitle": "", "summary": "", "email": "", "phone": "", "address": "", "website": "", "hardSkills": [], "softSkills": [], "experience": [{ "role": "", "company": "", "location": "", "start": "", "end": "", "achievements": [] }], "education": [{ "degree": "", "institution": "", "location": "", "start": "", "end": "", "details": "" }], "projects": [{ "name": "", "description": "", "github": "" }], "languages": [{ "name": "", "level": "" }] }',
+  '{ "fullName": "", "jobTitle": "", "summary": "", "email": "", "phone": "", "address": "", "website": "", "hardSkills": [], "softSkills": [], "experience": [{ "role": "", "company": "", "location": "", "start": "", "end": "", "achievements": [] }], "education": [{ "degree": "", "institution": "", "location": "", "start": "", "end": "", "details": "" }], "projects": [{ "name": "", "description": "", "github": "" }], "courses": [{ "name": "", "provider": "", "date": "", "details": "" }], "certificates": [{ "name": "", "issuer": "", "date": "", "details": "" }], "languages": [{ "name": "", "level": "" }] }',
+  "Use empty strings or empty arrays for anything not found.",
+  "No markdown, no code fences, no explanations."
+].join(" ");
+
+const AI_IMPROVE_SYSTEM_PROMPT = [
+  "You are a CV writing coach improving an existing CV.",
+  "Rewrite the professional summary to be stronger and more specific, using only facts present in the input.",
+  "Rewrite each achievement to start with a strong action verb and keep it measurable ONLY when the input already contains a number — never invent numbers, employers, dates, or skills.",
+  "Improve wording and clarity, but keep every fact, date, employer, and skill exactly as given.",
+  "Respond in the same language as the input CV data.",
+  "Return ONLY a valid JSON object with exactly these keys:",
+  '{ "fullName": "", "jobTitle": "", "summary": "", "email": "", "phone": "", "address": "", "website": "", "hardSkills": [], "softSkills": [], "experience": [{ "role": "", "company": "", "location": "", "start": "", "end": "", "achievements": [] }], "education": [{ "degree": "", "institution": "", "location": "", "start": "", "end": "", "details": "" }], "projects": [{ "name": "", "description": "", "github": "" }], "courses": [{ "name": "", "provider": "", "date": "", "details": "" }], "certificates": [{ "name": "", "issuer": "", "date": "", "details": "" }], "languages": [{ "name": "", "level": "" }], "atsKeywords": [] }',
+  "atsKeywords: up to 10 ATS keywords that match the CV's real skills and roles — suggest, never invent.",
   "Use empty strings or empty arrays for anything not found.",
   "No markdown, no code fences, no explanations."
 ].join(" ");
@@ -2582,10 +2698,23 @@ function normalizeAiCv(ai) {
       description: entry.description || "",
       github: entry.github || entry.link || entry.url || ""
     })),
+    courses: (Array.isArray(safe.courses) ? safe.courses : []).map((entry) => ({
+      name: entry.name || "",
+      provider: entry.provider || "",
+      date: entry.date || "",
+      details: Array.isArray(entry.details) ? entry.details.join("\n") : (entry.details || "")
+    })),
+    certificates: (Array.isArray(safe.certificates) ? safe.certificates : []).map((entry) => ({
+      name: entry.name || "",
+      issuer: entry.issuer || "",
+      date: entry.date || "",
+      details: Array.isArray(entry.details) ? entry.details.join("\n") : (entry.details || "")
+    })),
     languages: (Array.isArray(safe.languages) ? safe.languages : []).map((entry) => ({
       name: entry.name || "",
       level: entry.level || ""
-    }))
+    })),
+    atsKeywords: aiToLines(safe.atsKeywords)
   };
 }
 
@@ -2618,6 +2747,73 @@ function normalizeModelName(model) {
   return (model || "").trim().replace(/^models\//i, "");
 }
 
+async function fetchAiModelNames(apiKey, endpoint) {
+  const res = await fetch(aiModelsUrl(endpoint), {
+    headers: { Authorization: "Bearer " + apiKey }
+  });
+  const raw = await res.text();
+
+  if (!res.ok) {
+    throw new Error(await readApiErrorDetail({ status: res.status, text: async () => raw }));
+  }
+
+  const data = JSON.parse(raw);
+  return ((data && data.data) || [])
+    .map((m) => normalizeModelName(m.id))
+    .filter(Boolean);
+}
+
+// Fill the model input's suggestion list (a datalist keeps free typing).
+function populateModelDatalist(names) {
+  const list = document.getElementById("aiModelList");
+  if (!list) return;
+
+  list.innerHTML = "";
+  (names || []).slice(0, 100).forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    list.appendChild(option);
+  });
+}
+
+async function refreshAiModels() {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+
+  if (!apiKey) {
+    setImportStatus("aiStatusNeedKey");
+    return;
+  }
+
+  if (!endpoint) {
+    setImportStatusWithDetail("aiStatusError", "endpoint is empty");
+    return;
+  }
+
+  saveAiSettings();
+  setImportStatus("aiStatusModelsLoading");
+  if (aiModelsBtn) aiModelsBtn.disabled = true;
+
+  try {
+    const names = await fetchAiModelNames(apiKey, endpoint);
+    populateModelDatalist(names);
+
+    if (names.length) {
+      setImportStatusWithDetail("aiStatusModelsOk", names.length + " models");
+    } else {
+      setImportStatus("aiStatusModelsEmpty");
+    }
+  } catch (error) {
+    console.error("AI models error:", error);
+    const detail = error && error.message === "Failed to fetch"
+      ? "network/CORS blocked"
+      : (error && error.message) || "";
+    setImportStatusWithDetail("aiStatusError", detail);
+  } finally {
+    if (aiModelsBtn) aiModelsBtn.disabled = false;
+  }
+}
+
 async function testAiConnection() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
   const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
@@ -2637,19 +2833,8 @@ async function testAiConnection() {
   aiTestBtn.disabled = true;
 
   try {
-    const res = await fetch(aiModelsUrl(endpoint), {
-      headers: { Authorization: "Bearer " + apiKey }
-    });
-    const raw = await res.text();
-
-    if (!res.ok) {
-      throw new Error(await readApiErrorDetail({ status: res.status, text: async () => raw }));
-    }
-
-    const data = JSON.parse(raw);
-    const names = ((data && data.data) || [])
-      .map((m) => normalizeModelName(m.id))
-      .filter(Boolean);
+    const names = await fetchAiModelNames(apiKey, endpoint);
+    populateModelDatalist(names);
 
     // Probe a minimal chat completion: isolates whether /chat/completions
     // itself works for this key, independent of the PDF/system prompt shape.
@@ -2711,10 +2896,220 @@ async function fetchWithRetry(url, options, { retries = 3, baseDelayMs = 1000 } 
   return lastResponse;
 }
 
+// --- Review-before-apply panel for AI results ---
+const aiReviewPanel = document.getElementById("aiReviewPanel");
+const aiUndoBtn = document.getElementById("aiUndoBtn");
+let pendingAiParsed = null;
+let lastAiUndoState = null;
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+
+function truncateText(value, maxLength) {
+  const text = String(value || "");
+  return text.length > maxLength ? text.slice(0, maxLength - 1) + "…" : text;
+}
+
+// Short old-vs-new summary for one review row, plus whether the full
+// section content actually changed (names alone are not enough: improve
+// mode often rewrites descriptions while keeping names).
+function aiSectionSummary(key, parsed, current) {
+  const listText = (entries, nameKey) => {
+    const names = (entries || []).map((entry) => entry[nameKey] || "").filter(Boolean);
+    return names.length ? `${names.length} — ${names.slice(0, 3).join("، ")}` : "";
+  };
+  const entriesChanged = (oldEntries, newEntries) =>
+    JSON.stringify(oldEntries || []) !== JSON.stringify(newEntries || []);
+
+  switch (key) {
+    case "basic": {
+      const oldFields = [current.fields.fullName, current.fields.jobTitle, current.fields.summary, current.fields.email, current.fields.phone, current.fields.address, current.fields.website];
+      const newFields = [parsed.fullName, parsed.jobTitle, parsed.summary, parsed.email, parsed.phone, parsed.address, parsed.website];
+      const oldLine = oldFields.filter(Boolean).join(" · ");
+      const newLine = newFields.filter(Boolean).join(" · ");
+      return { oldText: oldLine, newText: newLine, changed: oldLine !== newLine };
+    }
+    case "experience":
+      return { oldText: listText(current.experience, "role"), newText: listText(parsed.experience, "role"), changed: entriesChanged(current.experience, parsed.experience) };
+    case "education":
+      return { oldText: listText(current.education, "degree"), newText: listText(parsed.education, "degree"), changed: entriesChanged(current.education, parsed.education) };
+    case "projects":
+      return { oldText: listText(current.projects, "name"), newText: listText(parsed.projects, "name"), changed: entriesChanged(current.projects, parsed.projects) };
+    case "courses":
+      return { oldText: listText(current.courses, "name"), newText: listText(parsed.courses, "name"), changed: entriesChanged(current.courses, parsed.courses) };
+    case "certificates":
+      return { oldText: listText(current.certificates, "name"), newText: listText(parsed.certificates, "name"), changed: entriesChanged(current.certificates, parsed.certificates) };
+    case "skills": {
+      const oldLine = [...linesFromValue(current.fields.hardSkills), ...linesFromValue(current.fields.softSkills)].join("، ");
+      const newLine = [...(parsed.hardSkills || []), ...(parsed.softSkills || [])].join("، ");
+      return { oldText: oldLine, newText: newLine, changed: oldLine !== newLine };
+    }
+    case "languages":
+      return { oldText: listText(current.languages, "name"), newText: listText(parsed.languages, "name"), changed: entriesChanged(current.languages, parsed.languages) };
+    default:
+      return { oldText: "", newText: "", changed: false };
+  }
+}
+
+function showAiReview(parsed) {
+  if (!aiReviewPanel) return;
+
+  const locale = currentLocale();
+  const strings = locale.strings;
+  const current = collectFormState();
+  pendingAiParsed = parsed;
+
+  const rows = AI_REVIEW_SECTIONS.map(({ key, labelKey }) => {
+    const { oldText, newText, changed } = aiSectionSummary(key, parsed, current);
+    const oldDisplay = truncateText(oldText || strings.aiReviewEmpty, 160);
+    const newDisplay = truncateText(newText || strings.aiReviewEmpty, 160);
+    const unchanged = !changed;
+    const clearsData = !newText && !!oldText;
+    // Default: apply real changes; never silently clear a filled section,
+    // and skip rows where nothing changed.
+    const checked = !unchanged && !clearsData;
+    const rowClass = unchanged
+      ? "ai-review-row no-change"
+      : clearsData
+        ? "ai-review-row warn"
+        : "ai-review-row";
+    const meta = unchanged
+      ? strings.aiReviewNoChange
+      : clearsData
+        ? `${strings.aiReviewCurrent}: ${oldDisplay} · ${strings.aiReviewClearWarning}`
+        : `${strings.aiReviewCurrent}: ${oldDisplay} — ${strings.aiReviewNew}: ${newDisplay}`;
+
+    return `
+      <div class="${rowClass}">
+        <input type="checkbox" data-review-section="${key}" ${checked ? "checked" : ""} ${unchanged ? "disabled" : ""}>
+        <div>
+          <strong>${escapeHtml(strings[labelKey] || key)}</strong>
+          <div class="review-meta">${escapeHtml(meta)}</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  const keywords = (parsed.atsKeywords || []).filter(Boolean);
+  const keywordsBlock = keywords.length ? `
+    <div class="ai-review-keywords">
+      <strong>${escapeHtml(strings.aiKeywordsTitle)}</strong>
+      <div class="review-meta">${escapeHtml(keywords.join("، "))}</div>
+    </div>` : "";
+
+  aiReviewPanel.innerHTML = `
+    <h3>${escapeHtml(strings.aiReviewTitle)}</h3>
+    <p class="section-hint">${escapeHtml(strings.aiReviewHint)}</p>
+    ${rows}
+    ${keywordsBlock}
+    <div class="ai-review-actions">
+      <button type="button" class="ghost-btn" id="aiApplyReviewBtn">${escapeHtml(strings.aiApplySelectedBtn)}</button>
+      <button type="button" class="ghost-btn" id="aiCancelReviewBtn">${escapeHtml(strings.aiCancelReviewBtn)}</button>
+    </div>`;
+  aiReviewPanel.hidden = false;
+
+  document.getElementById("aiApplyReviewBtn").addEventListener("click", applyAiReview);
+  document.getElementById("aiCancelReviewBtn").addEventListener("click", hideAiReview);
+}
+
+function hideAiReview() {
+  pendingAiParsed = null;
+
+  if (aiReviewPanel) {
+    aiReviewPanel.hidden = true;
+    aiReviewPanel.innerHTML = "";
+  }
+}
+
+function applyAiReview() {
+  if (!pendingAiParsed) {
+    hideAiReview();
+    return;
+  }
+
+  const selected = Array.from(aiReviewPanel.querySelectorAll("[data-review-section]:checked"))
+    .map((el) => el.dataset.reviewSection);
+
+  if (!selected.length) {
+    hideAiReview();
+    return;
+  }
+
+  // Snapshot before applying, so the change can be undone in one click.
+  lastAiUndoState = collectFormState();
+  selected.forEach((key) => applyAiSection(key, pendingAiParsed));
+  applyLanguage(languageSelect.value);
+  saveFormState();
+  hideAiReview();
+
+  if (aiUndoBtn) aiUndoBtn.hidden = false;
+  setImportStatus("aiStatusApplied");
+}
+
+function undoAiApply() {
+  if (!lastAiUndoState) return;
+
+  restoreFormState(lastAiUndoState);
+  applyLanguage(languageSelect.value);
+  saveFormState();
+  lastAiUndoState = null;
+
+  if (aiUndoBtn) aiUndoBtn.hidden = true;
+  setImportStatus("aiStatusUndone");
+}
+
+// One chat-completions call returning the parsed JSON content.
+async function callAiChat(systemPrompt, userContent, temperature) {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "") || "https://api.openai.com/v1/chat/completions";
+  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+
+  const response = await fetchWithRetry(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + apiKey
+    },
+    body: JSON.stringify({
+      model: model,
+      temperature: temperature,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiErrorDetail(response));
+  }
+
+  const result = await response.json();
+  let content = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
+
+  content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+  return JSON.parse(content);
+}
+
+// Diagnostic context (no secrets): shows exactly what was sent.
+function aiErrorDetail(error) {
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+  const detail = error && error.message === "Failed to fetch"
+    ? "network/CORS blocked"
+    : (error && error.message) || "";
+  return detail + ` [model="${model}" endpoint="${endpoint}"]`;
+}
+
 async function refineWithAi() {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
-  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "https://api.openai.com/v1/chat/completions");
-  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "gpt-4o-mini");
 
   if (!apiKey) {
     setImportStatus("aiStatusNeedKey");
@@ -2730,49 +3125,135 @@ async function refineWithAi() {
   setImportStatus("aiStatusWorking");
   aiRefineBtn.disabled = true;
 
-  let response = null;
-
   try {
-    response = await fetchWithRetry(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey
-      },
-      body: JSON.stringify({
-        model: model,
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: AI_EXTRACT_SYSTEM_PROMPT },
-          { role: "user", content: lastPdfRawText.slice(0, 12000) }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(await readApiErrorDetail(response));
-    }
-
-    const result = await response.json();
-    let content = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
-
-    content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-
-    const parsed = JSON.parse(content);
-
-    fillFormFromParsedCv(normalizeAiCv(parsed));
-    setImportStatus("aiStatusDone");
+    const parsed = await callAiChat(AI_EXTRACT_SYSTEM_PROMPT, lastPdfRawText.slice(0, 12000), 0.1);
+    showAiReview(normalizeAiCv(parsed));
+    setImportStatus("aiStatusReviewReady");
   } catch (error) {
     console.error("AI refine error:", error);
-    let detail = error && error.message === "Failed to fetch"
-      ? "network/CORS blocked"
-      : (error && error.message) || "";
-    // Diagnostic context (no secrets): shows exactly what was sent.
-    detail += ` [model="${model}" endpoint="${endpoint}" finalUrl="${response ? response.url : ""}"]`;
-    setImportStatusWithDetail("aiStatusError", detail);
+    setImportStatusWithDetail("aiStatusError", aiErrorDetail(error));
   } finally {
     aiRefineBtn.disabled = false;
   }
+}
+
+// Improve the wording of the data already in the form — no PDF needed.
+function currentCvForAi(state) {
+  return {
+    fullName: state.fields.fullName,
+    jobTitle: state.fields.jobTitle,
+    summary: state.fields.summary,
+    email: state.fields.email,
+    phone: state.fields.phone,
+    address: state.fields.address,
+    website: state.fields.website,
+    hardSkills: linesFromValue(state.fields.hardSkills),
+    softSkills: linesFromValue(state.fields.softSkills),
+    experience: (state.experience || []).map((entry) => ({
+      ...entry,
+      achievements: linesFromValue(entry.achievements)
+    })),
+    education: state.education || [],
+    projects: state.projects || [],
+    courses: state.courses || [],
+    certificates: state.certificates || [],
+    languages: state.languages || []
+  };
+}
+
+async function improveWithAi() {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+
+  if (!apiKey) {
+    setImportStatus("aiStatusNeedKey");
+    return;
+  }
+
+  const current = collectFormState();
+  const hasData = Object.values(current.fields).some((value) => (value || "").trim()) ||
+    current.experience.length || current.education.length || current.projects.length ||
+    current.courses.length || current.certificates.length || current.languages.length;
+
+  if (!hasData) {
+    setImportStatus("aiStatusNoData");
+    return;
+  }
+
+  saveAiSettings();
+  setImportStatus("aiStatusWorking");
+  if (aiImproveBtn) aiImproveBtn.disabled = true;
+
+  try {
+    const parsed = await callAiChat(AI_IMPROVE_SYSTEM_PROMPT, JSON.stringify(currentCvForAi(current)), 0.3);
+    showAiReview(normalizeAiCv(parsed));
+    setImportStatus("aiStatusReviewReady");
+  } catch (error) {
+    console.error("AI improve error:", error);
+    setImportStatusWithDetail("aiStatusError", aiErrorDetail(error));
+  } finally {
+    if (aiImproveBtn) aiImproveBtn.disabled = false;
+  }
+}
+
+// Extract from text pasted directly — no PDF file needed.
+async function extractFromPastedText() {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const text = aiPasteTextInput ? aiPasteTextInput.value.trim() : "";
+
+  if (!apiKey) {
+    setImportStatus("aiStatusNeedKey");
+    return;
+  }
+
+  if (!text) {
+    setImportStatus("aiStatusNoPaste");
+    return;
+  }
+
+  // Reuse the PDF-text path so a later reload keeps working.
+  lastPdfRawText = text;
+  persistPdfRawText(text);
+
+  saveAiSettings();
+  setImportStatus("aiStatusWorking");
+  if (aiPasteExtractBtn) aiPasteExtractBtn.disabled = true;
+
+  try {
+    const parsed = await callAiChat(AI_EXTRACT_SYSTEM_PROMPT, text.slice(0, 12000), 0.1);
+    showAiReview(normalizeAiCv(parsed));
+    setImportStatus("aiStatusReviewReady");
+  } catch (error) {
+    console.error("AI paste-extract error:", error);
+    setImportStatusWithDetail("aiStatusError", aiErrorDetail(error));
+  } finally {
+    if (aiPasteExtractBtn) aiPasteExtractBtn.disabled = false;
+  }
+}
+
+function syncAiKeyButton() {
+  if (!aiApiKeyInput || !aiShowKeyBtn) return;
+  const locale = currentLocale();
+  aiShowKeyBtn.textContent = aiApiKeyInput.type === "text"
+    ? locale.strings.aiHideKey
+    : locale.strings.aiShowKey;
+}
+
+function toggleAiKeyVisibility() {
+  if (!aiApiKeyInput) return;
+  aiApiKeyInput.type = aiApiKeyInput.type === "text" ? "password" : "text";
+  syncAiKeyButton();
+}
+
+const aiPasteTextInput = document.getElementById("aiPasteTextInput");
+const aiPasteExtractBtn = document.getElementById("aiPasteExtractBtn");
+const aiShowKeyBtn = document.getElementById("aiShowKeyBtn");
+
+if (aiPasteExtractBtn) {
+  aiPasteExtractBtn.addEventListener("click", extractFromPastedText);
+}
+
+if (aiShowKeyBtn) {
+  aiShowKeyBtn.addEventListener("click", toggleAiKeyVisibility);
 }
 
 if (aiRefineBtn) {
@@ -2780,8 +3261,21 @@ if (aiRefineBtn) {
   loadAiSettings();
 }
 
+if (aiImproveBtn) {
+  aiImproveBtn.addEventListener("click", improveWithAi);
+}
+
+if (aiUndoBtn) {
+  aiUndoBtn.addEventListener("click", undoAiApply);
+}
+
 if (aiTestBtn) {
   aiTestBtn.addEventListener("click", testAiConnection);
+}
+
+const aiModelsBtn = document.getElementById("aiModelsBtn");
+if (aiModelsBtn) {
+  aiModelsBtn.addEventListener("click", refreshAiModels);
 }
 
 if (aiProviderSelect) {
