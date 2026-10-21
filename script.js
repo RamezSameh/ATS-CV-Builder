@@ -191,6 +191,11 @@ const i18n = {
       aiStatusModelsLoading: "جاري تحميل قائمة الموديلات...",
       aiStatusModelsOk: "تم تحميل قائمة الموديلات — اختار من الاقتراحات أو اكتب اسمًا مخصصًا.",
       aiStatusModelsEmpty: "لم يتم العثور على موديلات متاحة.",
+      aiDetectBtn: "اكتشاف الموديلات الشغالة",
+      aiStatusDetecting: "جاري اختبار الموديلات المتاحة تلقائيًا...",
+      aiStatusDetectProgress: "بختبر الموديلات...",
+      aiStatusDetectOk: "تم — الموديلات الشغالة:",
+      aiStatusDetectNone: "مفيش موديل شغال من اللي اتجربوا — راجع المفتاح أو المزود.",
       aiImproveBtn: "تحسين الصياغة",
       aiImproveHint: "تحسين الصياغة بياخد بياناتك الحالية ويقوّي النبذة والإنجازات من غير ما يخترع أرقام أو بيانات — ومش محتاج ملف PDF.",
       aiStatusNoData: "اكتب بيانات في الفورم أولًا.",
@@ -432,6 +437,11 @@ const i18n = {
       aiStatusModelsLoading: "Loading model list...",
       aiStatusModelsOk: "Model list loaded — pick from the suggestions or type a custom name.",
       aiStatusModelsEmpty: "No models found.",
+      aiDetectBtn: "Detect working models",
+      aiStatusDetecting: "Auto-testing available models...",
+      aiStatusDetectProgress: "Testing models...",
+      aiStatusDetectOk: "Done — working models:",
+      aiStatusDetectNone: "No working model found among the tested ones — check the key or provider.",
       aiImproveBtn: "Improve wording",
       aiImproveHint: "Improve wording takes your current data and strengthens the summary and achievements without inventing numbers or facts — no PDF needed.",
       aiStatusNoData: "Fill in some form data first.",
@@ -2631,6 +2641,10 @@ function loadAiSettings() {
     if (aiProviderSelect) {
       aiProviderSelect.value = saved.provider || detectAiProvider(aiEndpointInput && aiEndpointInput.value);
     }
+
+    // Offer the models proven working by the last auto-detection.
+    const cachedWorking = getCachedAiWorkingModels(aiEndpointInput ? normalizeEndpoint(aiEndpointInput.value) : "");
+    if (cachedWorking.length) populateModelDatalist(cachedWorking);
   } catch (error) {
     console.warn("Could not load AI settings:", error);
   }
@@ -2812,6 +2826,197 @@ async function refreshAiModels() {
   } finally {
     if (aiModelsBtn) aiModelsBtn.disabled = false;
   }
+}
+
+// ---- Automatic working-model detection ----
+// Just entering an API key is enough: the tool fetches the provider's
+// model list, probes each chat-capable model with a minimal "ping"
+// completion, and automatically switches to the first one that answers.
+// Probes are tiny (one short reply) and run in small parallel batches.
+const AI_WORKING_MODELS_KEY = "atsCvAiWorkingModels";
+const AI_PROBE_TIMEOUT_MS = 20000;
+const AI_DETECT_MAX_MODELS = 30;
+const AI_DETECT_BATCH = 4;
+const AI_DETECT_MIN_KEY_LEN = 10;
+const AI_NON_CHAT_MODEL = /embed|whisper|tts|image|dall|moderation|rerank|realtime|transcri/i;
+
+let aiDetectRunId = 0;
+let aiDetectTimer = null;
+let aiLastDetectKey = "";
+let aiLastDetectEndpoint = "";
+
+function getCachedAiWorkingModels(endpoint) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(AI_WORKING_MODELS_KEY) || "null");
+    if (cached && cached.endpoint === endpoint && Array.isArray(cached.models)) {
+      return cached.models;
+    }
+  } catch (error) {
+    // Corrupt cache: treat as no cache.
+  }
+  return [];
+}
+
+function saveCachedAiWorkingModels(endpoint, models) {
+  try {
+    localStorage.setItem(AI_WORKING_MODELS_KEY, JSON.stringify({ endpoint, models }));
+  } catch (error) {
+    // Cache is best-effort; detection still works without it.
+  }
+}
+
+// One minimal chat completion: true when the model answers at all.
+// Reasoning-style models reject max_tokens, so retry those with
+// max_completion_tokens before giving up on the model.
+async function probeAiModel(apiKey, endpoint, model) {
+  const headers = { "Content-Type": "application/json", Authorization: "Bearer " + apiKey };
+
+  for (const maxKey of ["max_tokens", "max_completion_tokens"]) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_PROBE_TIMEOUT_MS);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ model, [maxKey]: 5, messages: [{ role: "user", content: "ping" }] }),
+        signal: controller.signal
+      });
+      if (res.ok) return { ok: true, status: res.status };
+      if (res.status === 400 && maxKey === "max_tokens") continue;
+      return { ok: false, status: res.status };
+    } catch (error) {
+      return { ok: false, status: 0 };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return { ok: false, status: 0 };
+}
+
+// Current model and preset default first (most likely to work), then the
+// rest of the list; non-chat models (embeddings, TTS, images...) skipped.
+function orderAiCandidates(names, currentModel, presetModel) {
+  const seen = new Set();
+  const ordered = [];
+  const push = (name) => {
+    const model = normalizeModelName(name);
+    if (model && !seen.has(model)) {
+      seen.add(model);
+      ordered.push(model);
+    }
+  };
+  push(currentModel);
+  push(presetModel);
+  (names || []).forEach(push);
+  return ordered.filter((model) => !AI_NON_CHAT_MODEL.test(model)).slice(0, AI_DETECT_MAX_MODELS);
+}
+
+function setAiDetectButtonsDisabled(disabled) {
+  [aiDetectBtn, aiTestBtn, aiModelsBtn].forEach((btn) => {
+    if (btn) btn.disabled = disabled;
+  });
+}
+
+async function detectWorkingAiModels({ manual = false } = {}) {
+  const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+
+  if (!apiKey || apiKey.length < AI_DETECT_MIN_KEY_LEN) {
+    if (manual) setImportStatus("aiStatusNeedKey");
+    return [];
+  }
+
+  if (!endpoint) {
+    if (manual) setImportStatusWithDetail("aiStatusError", "endpoint is empty");
+    return [];
+  }
+
+  const runId = ++aiDetectRunId;
+  aiLastDetectKey = apiKey;
+  aiLastDetectEndpoint = endpoint;
+  saveAiSettings();
+  setImportStatus("aiStatusDetecting");
+  setAiDetectButtonsDisabled(true);
+
+  try {
+    const names = await fetchAiModelNames(apiKey, endpoint);
+    if (runId !== aiDetectRunId) return [];
+
+    const presetModel = (aiProviderSelect && AI_PRESETS[aiProviderSelect.value])
+      ? AI_PRESETS[aiProviderSelect.value].model
+      : "";
+    const candidates = orderAiCandidates(names, aiModelInput ? aiModelInput.value : "", presetModel);
+
+    if (!candidates.length) {
+      setImportStatus("aiStatusModelsEmpty");
+      return [];
+    }
+
+    const working = [];
+    const failures = [];
+    for (let i = 0; i < candidates.length; i += AI_DETECT_BATCH) {
+      if (runId !== aiDetectRunId) return [];
+      const batch = candidates.slice(i, i + AI_DETECT_BATCH);
+      const results = await Promise.all(batch.map(async (model) => ({
+        model,
+        ...(await probeAiModel(apiKey, endpoint, model))
+      })));
+      results.forEach((result) => {
+        if (result.ok) {
+          working.push(result.model);
+        } else {
+          failures.push(result.status);
+        }
+      });
+      setImportStatusWithDetail(
+        "aiStatusDetectProgress",
+        Math.min(i + AI_DETECT_BATCH, candidates.length) + "/" + candidates.length + " · " + working.length + " working"
+      );
+    }
+    if (runId !== aiDetectRunId) return [];
+
+    if (!working.length) {
+      // Every probe rejected on auth: the key itself is wrong (or still
+      // half-typed), which is more useful than "no working model".
+      if (failures.length && failures.every((status) => status === 401 || status === 403)) {
+        setImportStatusWithDetail("aiStatusError", "invalid API key (HTTP " + failures[0] + ")");
+      } else {
+        setImportStatus("aiStatusDetectNone");
+      }
+      return [];
+    }
+
+    populateModelDatalist(working);
+    if (aiModelInput) aiModelInput.value = working[0];
+    saveCachedAiWorkingModels(endpoint, working);
+    saveAiSettings();
+    setImportStatusWithDetail("aiStatusDetectOk", working.length + " working · using " + working[0]);
+    return working;
+  } catch (error) {
+    if (runId !== aiDetectRunId) return [];
+    console.error("AI auto-detect error:", error);
+    const detail = error && error.message === "Failed to fetch"
+      ? "network/CORS blocked"
+      : (error && error.message) || "";
+    setImportStatusWithDetail("aiStatusError", detail);
+    return [];
+  } finally {
+    if (runId === aiDetectRunId) setAiDetectButtonsDisabled(false);
+  }
+}
+
+// Debounced auto-run: fires ~900ms after the user stops typing a key,
+// or right after switching provider while a key is set. Skips when the
+// same key+endpoint was already detected (no repeated probing on load).
+function scheduleAiAutoDetect() {
+  if (aiDetectTimer) clearTimeout(aiDetectTimer);
+  aiDetectTimer = setTimeout(() => {
+    const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
+    const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "");
+    if (apiKey.length < AI_DETECT_MIN_KEY_LEN) return;
+    if (apiKey === aiLastDetectKey && endpoint === aiLastDetectEndpoint) return;
+    detectWorkingAiModels();
+  }, 900);
 }
 
 async function testAiConnection() {
@@ -3064,11 +3269,11 @@ function undoAiApply() {
   setImportStatus("aiStatusUndone");
 }
 
-// One chat-completions call returning the parsed JSON content.
-async function callAiChat(systemPrompt, userContent, temperature) {
+// One chat-completions call with an explicit model, returning the parsed
+// JSON content. Throws with .status attached on HTTP errors.
+async function callAiChatWithModel(systemPrompt, userContent, temperature, model) {
   const apiKey = aiApiKeyInput ? aiApiKeyInput.value.trim() : "";
   const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "") || "https://api.openai.com/v1/chat/completions";
-  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
 
   const response = await fetchWithRetry(endpoint, {
     method: "POST",
@@ -3087,7 +3292,9 @@ async function callAiChat(systemPrompt, userContent, temperature) {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiErrorDetail(response));
+    const error = new Error(await readApiErrorDetail(response));
+    error.status = response.status;
+    throw error;
   }
 
   const result = await response.json();
@@ -3096,6 +3303,31 @@ async function callAiChat(systemPrompt, userContent, temperature) {
   content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
   return JSON.parse(content);
+}
+
+// One chat-completions call returning the parsed JSON content.
+// If the chosen model is gone (404, or a 400 naming the model), retry
+// once with the next model from the last auto-detection — and keep that
+// model selected, so the next call uses a working model directly.
+async function callAiChat(systemPrompt, userContent, temperature) {
+  const endpoint = normalizeEndpoint(aiEndpointInput ? aiEndpointInput.value : "") || "https://api.openai.com/v1/chat/completions";
+  const model = normalizeModelName(aiModelInput ? aiModelInput.value : "");
+
+  try {
+    return await callAiChatWithModel(systemPrompt, userContent, temperature, model);
+  } catch (error) {
+    const isModelError = error.status === 404 ||
+      (error.status === 400 && /model/i.test(error.message || ""));
+    if (!isModelError) throw error;
+
+    const fallback = getCachedAiWorkingModels(endpoint).find((name) => name !== model);
+    if (!fallback) throw error;
+
+    const result = await callAiChatWithModel(systemPrompt, userContent, temperature, fallback);
+    if (aiModelInput) aiModelInput.value = fallback;
+    saveAiSettings();
+    return result;
+  }
 }
 
 // Diagnostic context (no secrets): shows exactly what was sent.
@@ -3278,8 +3510,16 @@ if (aiModelsBtn) {
   aiModelsBtn.addEventListener("click", refreshAiModels);
 }
 
+const aiDetectBtn = document.getElementById("aiDetectBtn");
+if (aiDetectBtn) {
+  aiDetectBtn.addEventListener("click", () => detectWorkingAiModels({ manual: true }));
+}
+
 if (aiProviderSelect) {
-  aiProviderSelect.addEventListener("change", () => applyAiPreset(aiProviderSelect.value));
+  aiProviderSelect.addEventListener("change", () => {
+    applyAiPreset(aiProviderSelect.value);
+    scheduleAiAutoDetect();
+  });
 }
 
 // Manual edits to endpoint/model switch the provider to "custom".
@@ -3296,6 +3536,8 @@ if (aiProviderSelect) {
 
 if (aiApiKeyInput) {
   aiApiKeyInput.addEventListener("input", saveAiSettings);
+  // Typing/pasting a key auto-detects the working models (debounced).
+  aiApiKeyInput.addEventListener("input", scheduleAiAutoDetect);
 }
 
 downloadWordBtn.addEventListener("click", () => {
